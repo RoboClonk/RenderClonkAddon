@@ -319,11 +319,13 @@ class ACTIONSETTINGS_PT_SubPanel(bpy.types.Panel):
 
 
 			picture_layout = layout.column(align=True)
-			picture_layout.prop(anim_entry, "render_type_enum")
-			frame_row = layout.row(align=True)
+			render_type_icon = "ARMATURE_DATA"
 			if anim_entry.render_type_enum == "Picture":
-				picture_layout.label(text="Pictures will be packed after all other actions.", icon="USER")
-			else:
+				render_type_icon = "USER"
+
+			picture_layout.prop(anim_entry, "render_type_enum", icon=render_type_icon)
+			frame_row = picture_layout.row(align=True)
+			if anim_entry.render_type_enum == "Spriteanimation":
 				frame_row.prop(anim_entry, "start_frame")
 				frame_row.prop(anim_entry, "max_frames")
 

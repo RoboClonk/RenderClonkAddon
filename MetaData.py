@@ -27,8 +27,8 @@ class ActionMetaData(bpy.types.PropertyGroup):
 	alternative_name : bpy.props.StringProperty(name='Name Override', default="", description="Fill in, if you want this action to have a different name. This is only usefull if two entries share the same action")
 	render_type_enum : bpy.props.EnumProperty(
 		items={
-			("Spriteanimation", "Spriteanimation", "Render several frames and put them next to each other on the spritesheet."), 
-			("Picture", "Picture", "Render one frame and put it where it fits. This is useful for Titleimages.")}, 
+			("Spriteanimation", "Spriteanimation", "Render several frames and put them next to each other on the spritesheet.", 0), 
+			("Picture", "Picture", "Render one frame and put it where it fits. This is useful for title images.", 1)}, 
 		default="Spriteanimation", options={"HIDDEN"}, name=''
 		)
 	additional_object_enum : bpy.props.EnumProperty(
@@ -43,8 +43,8 @@ class ActionMetaData(bpy.types.PropertyGroup):
 class SpriteSheetMetaData(bpy.types.PropertyGroup):
 	overlay_rendering_enum : bpy.props.EnumProperty(
 		items={
-			("Separate", "Separate", "Graphics and Overlay rendered separately. Materials with \"Overlay\" in their name will be replaced with the overlay material."), 
-			("Combined", "Combined", "Graphics and Overlay in one image")}, 
+			("Separate", "Separate", "Graphics and Overlay rendered separately. Materials with \"Overlay\" in their name will be replaced with the overlay material.", 0), 
+			("Combined", "Combined", "Graphics and Overlay in one image", 1)}, 
 		default="Separate", options={"HIDDEN"}, name='Overlay Render Setting'
 		)
 	overlay_material : bpy.props.PointerProperty(type=bpy.types.Material, name='Overlay Material', description="Materials with \"Overlay\" in its name will be replaced with this material upon render")

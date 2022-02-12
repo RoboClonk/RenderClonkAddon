@@ -6,6 +6,7 @@
 
 import math
 import bpy
+import mathutils
 import numpy as np
 import os
 from enum import Enum
@@ -43,10 +44,14 @@ def get_sprite_height(action_entry):
 def get_sheet_strip_width(action_entry, get_scaled=True):
 	x_res_sprite = get_sprite_width(action_entry)
 
+	max_frames = action_entry.max_frames
+	if action_entry.render_type_enum == "Picture":
+		max_frames = 1
+
 	if get_scaled:
-		total_x_res = action_entry.max_frames * x_res_sprite * get_res_multiplier()
+		total_x_res = max_frames * x_res_sprite * get_res_multiplier()
 	else:
-		total_x_res = action_entry.max_frames * x_res_sprite
+		total_x_res = max_frames * x_res_sprite
 
 	return math.floor(total_x_res)
 
@@ -59,6 +64,24 @@ def get_sheet_strip_height(action_entry, get_scaled=True):
 		total_y_res = y_res_sprite
 
 	return math.floor(total_y_res)
+
+def GetSpriteStripInfo(action_entry, x_position, y_position):
+	sheetstrip_height = get_sheet_strip_height(action_entry, get_scaled=False)
+	sheetstrip_width = get_sheet_strip_width(action_entry, get_scaled=False)
+	sprite_height = get_sprite_height(action_entry)
+	sprite_width = get_sprite_width(action_entry)
+	sheet_strip_info = {
+		"Height" : sheetstrip_height,
+		"Width" : sheetstrip_width,
+		"X_pos" : x_position,
+		"Y_pos" : y_position,
+		"Length" : action_entry.max_frames,
+		"Name" : action_entry.action.name,
+		"Sprite_Height" : sprite_height,
+		"Sprite_Width" : sprite_width
+	}
+
+	return sheet_strip_info
 
 def GetSpritesheetInfo(action_entries):
 	# The widest action strip determines the width of the spritesheet.
@@ -75,36 +98,78 @@ def GetSpritesheetInfo(action_entries):
 	current_y_position = 0
 	last_height = 0
 	action_index = 0
-	for action_entry in action_entries:        
+	rows = []
+	row_height = 0
+	pictures = []
+	for action_entry in action_entries:
+		if action_entry.render_type_enum == "Picture": # Will be placed later
+			pictures.append(action_entry)
+			continue
+
 		sheetstrip_height = get_sheet_strip_height(action_entry, get_scaled=False)
 		sheetstrip_width = get_sheet_strip_width(action_entry, get_scaled=False)
 		
-		if current_x_position > sheet_width - sheetstrip_width or last_height != sheetstrip_height and last_height != 0:
+		if current_x_position > sheet_width - sheetstrip_width or last_height < sheetstrip_height and last_height != 0:
+			rows.append({"x_remaining" : sheet_width - current_x_position, "row_height" : row_height})
 			current_x_position = 0
 			current_y_position += last_height
+			row_height = 0
 		
-
-		sprite_height = get_sprite_height(action_entry)
-		sprite_width = get_sprite_width(action_entry)
-		sheet_strip_info = {
-			"Height" : sheetstrip_height,
-			"Width" : sheetstrip_width,
-			"X_pos" : current_x_position,
-			"Y_pos" : current_y_position,
-			"Length" : action_entry.max_frames,
-			"Name" : action_entry.action.name,
-			"Sprite_Height" : sprite_height,
-			"Sprite_Width" : sprite_width
-		}
-		sheet_strips[action_entry.action.name] = sheet_strip_info
+		sheet_strips[action_entry.action.name] = GetSpriteStripInfo(action_entry, current_x_position, current_y_position)
 		
 		current_x_position += sheetstrip_width
 		action_index += 1
 		last_height = sheetstrip_height
 
-		
+		if sheetstrip_height > row_height:
+			row_height = sheetstrip_height
+	
 	###
 	sheet_height = current_y_position + last_height
+	rows.append({"x_remaining" : sheet_width - current_x_position, "row_height" : row_height})
+
+	# Place pictures
+	for picture in pictures:
+		sprite_height = get_sprite_height(picture)
+		sprite_width = get_sprite_width(picture)
+
+		y_begin = 0
+		x_begin = 0
+		height_remaining = sprite_height
+		found_place = False
+		rows_changed = []
+
+		for row_number, row in enumerate(rows):
+			if row["x_remaining"] >= sprite_width:
+				if sheet_width - row["x_remaining"] > x_begin:
+					x_begin = sheet_width - row["x_remaining"]
+
+				height_remaining -= row["row_height"]
+				rows_changed.append(row_number)
+
+				if height_remaining <= 0:
+					sheet_strips[picture.action.name] = GetSpriteStripInfo(picture, x_begin, y_begin)
+					found_place = True
+					for changed_row_number in rows_changed:
+						rows[changed_row_number]["x_remaining"] = max(sheet_width - x_begin + sprite_width, 0)
+					break
+
+			else:
+				y_begin += row["row_height"]
+				x_begin = 0
+				height_remaining = sprite_height
+				rows_changed.clear()
+
+		if found_place == False:
+			y_begin = sheet_height
+			x_begin = 0
+			strip_info = GetSpriteStripInfo(picture, x_begin, y_begin)
+			sheet_strips[picture.action.name] = strip_info
+			
+			sheet_height += strip_info["Height"]
+			rows.append({"x_remaining" : strip_info["Width"], "row_height" : strip_info["Height"]})
+			
+
 	return int(sheet_width * get_res_multiplier()), int(sheet_height * get_res_multiplier()), sheet_strips
 
 def get_action_visible_objects(action_entry : MetaData.ActionMetaData):
@@ -152,12 +217,15 @@ def prepare_action(action_entry : MetaData.ActionMetaData):
 		object.hide_set(False)
 		object.hide_render = False
 
-	bpy.context.scene.frame_current = action_entry.start_frame
-	bpy.context.scene.frame_start = action_entry.start_frame
+	if action_entry.render_type_enum == "Picture":
+		bpy.context.scene.frame_current = 1
+		bpy.context.scene.frame_start = 1
+		bpy.context.scene.frame_end = 1
+	else:
+		bpy.context.scene.frame_current = action_entry.start_frame
+		bpy.context.scene.frame_start = action_entry.start_frame
+		bpy.context.scene.frame_end = action_entry.start_frame + action_entry.max_frames-1
 
-	if action_entry.max_frames <= 0:
-		action_entry.max_frames = 1
-	bpy.context.scene.frame_end = action_entry.start_frame + action_entry.max_frames-1
 	bpy.context.scene.anim_target.animation_data.action = action_entry.action
 
 def get_current_render_dimensions(action_entry):
@@ -327,6 +395,8 @@ def PrintActmap(path, sprite_strips, valid_action_entries):
 	# Prepare output content
 	output_content = []
 	for action_entry in valid_action_entries:
+		if action_entry.render_type_enum == "Picture":
+			continue
 		action_name = action_entry.action.name
 		found_entry = False
 		for content_section in file_content:
@@ -343,6 +413,8 @@ def PrintActmap(path, sprite_strips, valid_action_entries):
 
 	# Update content
 	for action_entry in valid_action_entries:
+		if action_entry.render_type_enum == "Picture":
+			continue
 		action_name = action_entry.action.name
 		for content_section_index in range(len(output_content)):
 			if output_content[content_section_index]["Name"] == action_name:
@@ -386,17 +458,16 @@ def PrintDefCore(path, sprite_strips, valid_action_entries):
 	y_offset = -math.floor(bpy.context.scene.render.resolution_y / 2.0)
 	content_section["Offset"] = str(x_offset) + "," + str(y_offset)
 
-	picture = {"x" : 0, "y" : 0, "w" : str(bpy.context.scene.render.resolution_x), "h" : str(bpy.context.scene.render.resolution_y)}
+	picture = {"x" : str(0), "y" : str(0), "w" : str(bpy.context.scene.render.resolution_x), "h" : str(bpy.context.scene.render.resolution_y)}
 	for action_entry in valid_action_entries:
 		if action_entry.render_type_enum == "Picture":
 			strip = sprite_strips[action_entry.action.name]
-
 			picture["x"] = str(strip["X_pos"])
 			picture["y"] = str(strip["Y_pos"])
 			picture["w"] = str(strip["Sprite_Width"])
 			picture["h"] = str(strip["Sprite_Height"])
 
-		break
+			break
 
 	content_section["Picture"] = picture["x"] + "," + picture["y"] + "," + picture["w"] + "," + picture["h"]
 
@@ -413,8 +484,9 @@ current_action_name = ""
 current_sheet_number = 1
 current_max_sheets = 1
 
+# Spritesheet rendering
 class TIMER_OT(bpy.types.Operator):
-	"""Operator that shows a progress bar"""
+	"""Operator that shows a progress bar while rendering the spritesheet"""
 	bl_idname = "timer.progress"
 	bl_label = "Progress Timer"
 
@@ -536,7 +608,8 @@ class TIMER_OT(bpy.types.Operator):
 			if self.render_state == 1:
 				current_action = self.action_entries[self.current_action_index]
 				
-				bpy.context.scene.frame_current = self.current_frame_number + current_action.start_frame
+				if current_action.render_type_enum != "Picture":
+					bpy.context.scene.frame_current = self.current_frame_number + current_action.start_frame
 				output_filepath = os.path.join(GetOutputPath(), "sprites", current_action.action.name + "_" + str(bpy.context.scene.frame_current))
 				
 				x_dim, y_dim = get_current_render_dimensions(current_action)
@@ -559,7 +632,7 @@ class TIMER_OT(bpy.types.Operator):
 				self.strip_image_data[:sprite_height, self.current_frame_number*sprite_width:(self.current_frame_number+1)*sprite_width, :] = sprite_pixel_data[:, :, :]
 			
 				self.current_frame_number += 1
-				if self.current_frame_number == current_action.max_frames:
+				if self.current_frame_number == current_action.max_frames or current_action.render_type_enum == "Picture":
 					self.render_state = 2
 
 				# Just for progress bar
@@ -643,9 +716,17 @@ class PREVIEW_OT(bpy.types.Operator):
 	search_name = ""
 	replacement_material = None
 
+	framestart = 1
+	frameend = 16
+	currentframe = 1
+
 	def execute(self, context):
 		context.window_manager.modal_handler_add(self)
 		action_entry = bpy.context.scene.animlist[bpy.context.scene.action_meta_data_index]
+
+		self.framestart = bpy.context.scene.frame_start
+		self.frameend = bpy.context.scene.frame_end
+		self.currentframe = bpy.context.scene.frame_current
 
 		prepare_action(action_entry)
 		if action_entry.find_material_name != "" and action_entry.replace_material != None:
@@ -669,6 +750,9 @@ class PREVIEW_OT(bpy.types.Operator):
 			
 			global preview_active
 			preview_active = False
+			bpy.context.scene.frame_start = self.framestart
+			bpy.context.scene.frame_end = self.frameend
+			bpy.context.scene.frame_current = self.currentframe
 
 			return {'FINISHED'}
 
