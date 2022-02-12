@@ -11,7 +11,7 @@ import os
 from enum import Enum
 from pathlib import Path
 
-from . import MetaDatas
+from . import MetaData
 from . import AnimPort
 
 
@@ -107,7 +107,7 @@ def GetSpritesheetInfo(action_entries):
 	sheet_height = current_y_position + last_height
 	return int(sheet_width * get_res_multiplier()), int(sheet_height * get_res_multiplier()), sheet_strips
 
-def get_action_visible_objects(action_entry : MetaDatas.ActionMetaData):
+def get_action_visible_objects(action_entry : MetaData.ActionMetaData):
 	visible_objects = []
 	visible_objects.append(bpy.context.scene.anim_target)
 	
@@ -131,7 +131,7 @@ def reset_object(object):
 		object.rotation_euler = [0, 0, 0]
 	object.scale =  [1.0, 1.0, 1.0]
 
-def prepare_action(action_entry : MetaDatas.ActionMetaData):
+def prepare_action(action_entry : MetaData.ActionMetaData):
 	if bpy.context.scene.anim_target == None:
 		raise AssertionError("No anim target assigned!")
 	if action_entry == None:
@@ -247,6 +247,10 @@ def DoesActmapExist():
 	path = os.path.join(GetOutputPath(), "ActMap.txt") 
 	return os.path.exists(path)
 
+def DoesDefCoreExist():
+	path = os.path.join(GetOutputPath(), "DefCore.txt") 
+	return os.path.exists(path)
+
 def ReadIni(filepath):
 	file_content = []
 
@@ -353,20 +357,57 @@ def PrintActmap(path, sprite_strips, valid_action_entries):
 
 	# Save content
 	PrintIni(actmap_path, output_content)
-	print("Finished updating ActMap.txt")
 
 
-def write_remaining_entries(file, action_entries_remaining, sprite_strips):
-	for action_entry in action_entries_remaining:
-		sprite_strip = sprite_strips[action_entry.action.name]
+def PrintDefCore(path, sprite_strips, valid_action_entries):
+	defcore_path = os.path.join(path, "DefCore.txt")
+	
+	# Get old defcore data
+	file_content = []
+	if os.path.exists(defcore_path):
+		file_content = ReadIni(defcore_path)
+	else:
+		print("No old DefCore.txt found. Creating new..")
 
-		file.write("[Action]\n")
-		file.write("Name=" + sprite_strip["Name"] + "\n")
-		file.write("Length=" + str(sprite_strip["Length"]) + "\n")
-		file.write("Facet=" + str(sprite_strip["X_pos"]) + "," + str(sprite_strip["Y_pos"]) + "," + str(get_sprite_width(action_entry)) + "," + str(get_sprite_height(action_entry)) + "\n")
-		file.write("\n")
+	# Prepare output content
+	output_content = []
+	if len(file_content) == 0:
+		content_section = {"SectionName" : "[DefCore]"}
+		output_content.append(content_section)
+	else:
+		for content_section in file_content:
+			output_content.append(content_section)
+
+	# Update content
+	content_section = output_content[0] # DefCore section
+	content_section["Width"] = str(bpy.context.scene.render.resolution_x)
+	content_section["Height"] = str(bpy.context.scene.render.resolution_y)
+	x_offset = -math.floor(bpy.context.scene.render.resolution_x / 2.0)
+	y_offset = -math.floor(bpy.context.scene.render.resolution_y / 2.0)
+	content_section["Offset"] = str(x_offset) + "," + str(y_offset)
+
+	picture = {"x" : 0, "y" : 0, "w" : str(bpy.context.scene.render.resolution_x), "h" : str(bpy.context.scene.render.resolution_y)}
+	for action_entry in valid_action_entries:
+		if action_entry.render_type_enum == "Picture":
+			strip = sprite_strips[action_entry.action.name]
+
+			picture["x"] = str(strip["X_pos"])
+			picture["y"] = str(strip["Y_pos"])
+			picture["w"] = str(strip["Sprite_Width"])
+			picture["h"] = str(strip["Sprite_Height"])
+
+		break
+
+	content_section["Picture"] = picture["x"] + "," + picture["y"] + "," + picture["w"] + "," + picture["h"]
+
+	if content_section.get("Scale"):
+		content_section.pop("Scale")
+	if bpy.context.scene.render.resolution_percentage != 100:
+		content_section["Scale"] = str(bpy.context.scene.render.resolution_percentage)
 
 
+	# Save content
+	PrintIni(defcore_path, output_content)
 
 current_action_name = ""
 current_sheet_number = 1
@@ -526,7 +567,7 @@ class TIMER_OT(bpy.types.Operator):
 
 			# Paste sprite strip onto sheet
 			if self.render_state == 2:
-				current_action : MetaDatas.ActionMetaData = self.action_entries[self.current_action_index]
+				current_action : MetaData.ActionMetaData = self.action_entries[self.current_action_index]
 				sprite_strip = self.sprite_strips[current_action.action.name]
 
 				x_pos = math.floor(sprite_strip["X_pos"] * get_res_multiplier())
@@ -578,7 +619,7 @@ class TIMER_OT(bpy.types.Operator):
 
 	def cancel(self, context):
 		if self.current_action_index < len(self.action_entries):
-			current_action : MetaDatas.ActionMetaData = self.action_entries[self.current_action_index]
+			current_action : MetaData.ActionMetaData = self.action_entries[self.current_action_index]
 			if current_action.find_material_name != "" and current_action.replace_material != None:
 				ResetMaterialReplacementByName(self.replacement_materials, current_action.find_material_name, current_action.replace_material)
 				
