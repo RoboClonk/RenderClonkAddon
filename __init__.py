@@ -46,13 +46,13 @@ from . import MeshPort
 from . import AnimPort
 from . import SpritesheetMaker
 from . import LoadUtilities
-from . import MetaDatas
+from . import MetaData
 import importlib
 importlib.reload(MeshPort)
 importlib.reload(AnimPort)
 importlib.reload(SpritesheetMaker)
 importlib.reload(LoadUtilities)
-importlib.reload(MetaDatas)
+importlib.reload(MetaData)
 
 
 print ("Render Clonk 2.0")
@@ -95,8 +95,8 @@ def on_clonk_dir_changed(self, context):
 class MAIN_PT_SettingsPanel(bpy.types.Panel):
 	bl_label = "Render Clonk Utilities"
 	bl_idname = "MAIN_PT_SettingsPanel"
-	bl_space_type = 'VIEW_3D'
-	bl_region_type = 'UI'
+	bl_space_type = "VIEW_3D"
+	bl_region_type = "UI"
 	bl_category = "Render Clonk"
 
 	def draw(self, context):
@@ -122,20 +122,17 @@ class MAIN_PT_SettingsPanel(bpy.types.Panel):
 
 		layout.separator()
 
-		#if bpy.data.collections.find("RenderClonk") == -1:
-			#layout.operator(Menu_Button.bl_idname, text="Add Render Studio ", icon="VIEW_CAMERA").menu_active = 4
-
 		layout.operator(Menu_Button.bl_idname, text="Append Clonk Rig", icon="OUTLINER_OB_ARMATURE").menu_active = 7
 		
 
 
 class Menu_Button(bpy.types.Operator):
-	bl_idname = 'menu.menu_op'
-	bl_label = 'Menu Button'
-	bl_description = ''
-	bl_options = {'REGISTER', 'UNDO'}
+	bl_idname = "menu.menu_op"
+	bl_label = "Menu Button"
+	bl_description = ""
+	bl_options = {"REGISTER", "UNDO"}
 
-	menu_active: bpy.props.IntProperty(name='Menu Index', options={"HIDDEN"})
+	menu_active: bpy.props.IntProperty(name="Menu Index", options={"HIDDEN"})
 
 	def execute(self, context):
 		if context.scene.lastfilepath is None or context.scene.lastfilepath == "":
@@ -190,16 +187,22 @@ class Menu_Button(bpy.types.Operator):
 
 			SpritesheetMaker.PrintActmap(SpritesheetMaker.GetOutputPath(), sprite_strips, valid_action_entries)
 
-		return {'FINISHED'}
+		if self.menu_active == 11:
+			valid_action_entries = SpritesheetMaker.GetValidActionEntries()
+			sheet_width, sheet_height, sprite_strips = SpritesheetMaker.GetSpritesheetInfo(valid_action_entries)
+
+			SpritesheetMaker.PrintDefCore(SpritesheetMaker.GetOutputPath(), sprite_strips, valid_action_entries)
+
+		return {"FINISHED"}
 
 
 class Action_List_Button(bpy.types.Operator):
-	bl_idname = 'list.list_op'
-	bl_label = 'Action List Operator'
-	bl_description = ''
-	bl_options = {'REGISTER', 'UNDO'}
+	bl_idname = "list.list_op"
+	bl_label = "Action List Operator"
+	bl_description = ""
+	bl_options = {"REGISTER", "UNDO"}
 
-	menu_active: bpy.props.IntProperty(name='Button Index')
+	menu_active: bpy.props.IntProperty(name="Button Index")
 
 	def execute(self, context):
 		if self.menu_active == 1:
@@ -238,14 +241,14 @@ class Action_List_Button(bpy.types.Operator):
 				context.scene.animlist.remove(context.scene.action_meta_data_index)
 				context.scene.action_meta_data_index = min(context.scene.action_meta_data_index, len(context.scene.animlist)-1)
 			
-		return {'FINISHED'}
+		return {"FINISHED"}
 
 
 class ACTION_PT_LayoutPanel(bpy.types.Panel):
 	bl_label = "Actions"
-	bl_space_type = 'VIEW_3D'
+	bl_space_type = "VIEW_3D"
 	bl_idname = "ACTION_PT_LayoutPanel"
-	bl_region_type = 'UI'
+	bl_region_type = "UI"
 	bl_category = "Render Clonk"
 
 	def draw(self, context):
@@ -273,12 +276,12 @@ class ACTION_PT_LayoutPanel(bpy.types.Panel):
 		list_row_layout.template_list("ACTION_UL_actionslots", "", scene, "animlist", scene, "action_meta_data_index")
 		menu_sort_layout_column = list_row_layout.column()
 		menu_sort_layout = menu_sort_layout_column.column(align=True)
-		menu_sort_layout.operator('list.list_op', text='', icon="ADD").menu_active = 6
-		menu_sort_layout.operator('list.list_op', text='', icon="REMOVE").menu_active = 7
+		menu_sort_layout.operator("list.list_op", text="", icon="ADD").menu_active = 6
+		menu_sort_layout.operator("list.list_op", text="", icon="REMOVE").menu_active = 7
 		menu_sort_layout2 = menu_sort_layout_column.column(align=True)
 		menu_sort_layout.separator(factor=3.0)
-		menu_sort_layout2.operator('list.list_op', text='', icon="TRIA_UP").menu_active = 4
-		menu_sort_layout2.operator('list.list_op', text='', icon="TRIA_DOWN").menu_active = 5
+		menu_sort_layout2.operator("list.list_op", text="", icon="TRIA_UP").menu_active = 4
+		menu_sort_layout2.operator("list.list_op", text="", icon="TRIA_DOWN").menu_active = 5
 
 		preview_button_layout = layout.column()
 		preview_button_layout.alignment = "LEFT"
@@ -295,10 +298,10 @@ class ACTION_PT_LayoutPanel(bpy.types.Panel):
 
 class ACTIONSETTINGS_PT_SubPanel(bpy.types.Panel):
 	bl_label = "Action Settings"
-	bl_space_type = 'VIEW_3D'
+	bl_space_type = "VIEW_3D"
 	bl_idname = "ACTIONSETTINGS_PT_SubPanel"
 	bl_parent_id = "ACTION_PT_LayoutPanel"
-	bl_region_type = 'UI'
+	bl_region_type = "UI"
 	bl_category = "Render Clonk"
 
 	def draw(self, context):
@@ -314,11 +317,16 @@ class ACTIONSETTINGS_PT_SubPanel(bpy.types.Panel):
 
 			anim_entry = scene.animlist[scene.action_meta_data_index]
 
-			# TODO:
-			#layout.prop(anim_entry, "render_type_enum")
+
+			picture_layout = layout.column(align=True)
+			picture_layout.prop(anim_entry, "render_type_enum")
 			frame_row = layout.row(align=True)
-			frame_row.prop(anim_entry, "start_frame")
-			frame_row.prop(anim_entry, "max_frames")
+			if anim_entry.render_type_enum == "Picture":
+				picture_layout.label(text="Pictures will be packed after all other actions.", icon="USER")
+			else:
+				frame_row.prop(anim_entry, "start_frame")
+				frame_row.prop(anim_entry, "max_frames")
+
 			layout.prop(anim_entry, "override_resolution")
 			if anim_entry.override_resolution:
 				action_data_layout2 = layout.row(align=True)
@@ -351,16 +359,14 @@ class ACTIONSETTINGS_PT_SubPanel(bpy.types.Panel):
 			replace_material_row.label(text="Replace with")
 			replace_material_row.prop(anim_entry, "replace_material", text="")
 			
-			
-			
-
+	
 		layout.separator(factor=2.0)
 
 class SPRITESHEET_PT_Panel(bpy.types.Panel):
 	bl_label = "Spritesheet Rendering"
 	bl_idname = "SPRITESHEET_PT_Panel"
-	bl_space_type = 'VIEW_3D'
-	bl_region_type = 'UI'
+	bl_space_type = "VIEW_3D"
+	bl_region_type = "UI"
 	bl_category = "Render Clonk"
 
 	def draw(self, context):
@@ -372,7 +378,6 @@ class SPRITESHEET_PT_Panel(bpy.types.Panel):
 		additional_settings_layout.prop(scene.spritesheet_settings, "overlay_rendering_enum")
 		if scene.spritesheet_settings.overlay_rendering_enum == "Separate":
 			additional_settings_layout.label(text="Renders the spritesheet twice.", icon="INFO")
-
 
 		layout.separator()
 
@@ -401,7 +406,6 @@ class SPRITESHEET_PT_Panel(bpy.types.Panel):
 		x_resolution = math.floor(scene.render.resolution_x * scene.render.resolution_percentage/100)
 		y_resolution = math.floor(scene.render.resolution_y * scene.render.resolution_percentage/100)
 		col.label(text="Output Resolution Per Sprite   x: " + str(x_resolution) + " px   y: " + str(y_resolution) + " px")
-		#col.separator()
 		
 		if bpy.context.scene.custom_output_dir != "":
 			layout.label(text="Individual sprites will be saved at: " + SpritesheetMaker.GetOutputPath(), icon="INFO")
@@ -419,6 +423,11 @@ class SPRITESHEET_PT_Panel(bpy.types.Panel):
 		else:
 			layout.operator(Menu_Button.bl_idname, text="Save ActMap.txt", icon="FILE_TEXT").menu_active = 10
 
+		if SpritesheetMaker.DoesDefCoreExist():
+			layout.operator(Menu_Button.bl_idname, text="Update DefCore.txt", icon="FILE_TEXT").menu_active = 11
+		else:
+			layout.operator(Menu_Button.bl_idname, text="Save DefCore.txt", icon="FILE_TEXT").menu_active = 11
+
 		layout.separator(factor=3.0)
 
 		pcoll = preview_collections["main"]
@@ -428,11 +437,11 @@ class SPRITESHEET_PT_Panel(bpy.types.Panel):
 
 class ABOUT_PT_LayoutPanel(bpy.types.Panel):
 	bl_label = "About"
-	bl_space_type = 'VIEW_3D'
+	bl_space_type = "VIEW_3D"
 	bl_idname = "ABOUT_PT_LayoutPanel"
-	bl_region_type = 'UI'
+	bl_region_type = "UI"
 	bl_category = "Render Clonk"
-	bl_options = {'DEFAULT_CLOSED'}
+	bl_options = {"DEFAULT_CLOSED"}
 
 	def draw(self, context):
 		layout = self.layout
@@ -483,7 +492,7 @@ class OT_ActListFilebrowser(bpy.types.Operator, ImportHelper):
 			print(self.filepath + " is no Actionlist!")
 
 		context.scene.lastfilepath = self.filepath
-		return {'FINISHED'}
+		return {"FINISHED"}
 
 
 preview_collections = {}
@@ -492,15 +501,18 @@ preview_collections = {}
 class ACTION_UL_actionslots(bpy.types.UIList):
 	
 	def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
-		if self.layout_type in {'DEFAULT', 'COMPACT'}:
+		if self.layout_type in {"DEFAULT", "COMPACT"}:
 			entry_layout = layout.row(align=False)
 			entry_layout.alignment = "LEFT"
 
 			if item.action == None:
 				action_name = "--no action selected--"
-				entry_layout.label(text=str(index) + ":   " + action_name, icon='ERROR')
+				entry_layout.label(text=str(index) + ":   " + action_name, icon="ERROR")
 			else:
-				entry_layout.prop(item.action, "name", text=str(index), emboss=False, icon='ARMATURE_DATA', expand=False)
+				icon_name = "ARMATURE_DATA"
+				if item.render_type_enum == "Picture":
+					icon_name = "USER"
+				entry_layout.prop(item.action, "name", text=str(index), emboss=False, icon=icon_name, expand=False)
 			
 			if item.additional_object_enum == "1_Object" and item.additional_object != None:
 				object_count = 1
@@ -512,7 +524,6 @@ class ACTION_UL_actionslots(bpy.types.UIList):
 			if item.override_resolution:
 				entry_layout.label(text=str(item.width) + "x" + str(item.height), icon="TEXTURE_DATA")
 
-		return
 
 registered_classes = [
 	Menu_Button, 
@@ -523,8 +534,8 @@ registered_classes = [
 	Action_List_Button,
 	SpritesheetMaker.TIMER_OT,
 	SpritesheetMaker.PREVIEW_OT,
-	MetaDatas.ActionMetaData,
-	MetaDatas.SpriteSheetMetaData,
+	MetaData.ActionMetaData,
+	MetaData.SpriteSheetMetaData,
 	MAIN_PT_SettingsPanel, 
 	ACTION_PT_LayoutPanel, 
 	ACTIONSETTINGS_PT_SubPanel,
@@ -541,7 +552,7 @@ def register():
 		
 		global preview_collections
 		pcoll = bpy.utils.previews.new()
-		pcoll.load("clonk_icon", os.path.join(AddonDirectory, "Clonk.png"), 'IMAGE')
+		pcoll.load("clonk_icon", os.path.join(AddonDirectory, "Clonk.png"), "IMAGE")
 
 		preview_collections["main"] = pcoll
 		
@@ -552,20 +563,20 @@ def register():
 
 		bpy.types.Scene.anim_target = bpy.props.PointerProperty(
 			type=bpy.types.Object, 
-			name='Action target', 
-			description='Actions that are listed below will be applied to this object as soon as \'Render Spritesheet\' is pressed. Using an armature is recommended, but not necessary', 
+			name="Action target", 
+			description="Actions that are listed below will be applied to this object as soon as \"Render Spritesheet\" is pressed. Using an armature is recommended, but not necessary", 
 			poll=None,
 		)
 		bpy.types.Scene.always_rendered_objects = bpy.props.PointerProperty(
 			type=bpy.types.Collection, 
-			name='Always rendered', 
-			description='This collection should contain all objects that are visible in all actions. This includes lights and cameras and if you render a clonk, it should be inside this collection as well', 
+			name="Always rendered", 
+			description="This collection should contain all objects that are visible in all actions. This includes lights and cameras and if you render a clonk, it should be inside this collection as well", 
 			poll=None,
 		)
 
-		bpy.types.Scene.action_meta_data_index = bpy.props.IntProperty(name='Action index')
-		bpy.types.Scene.animlist = bpy.props.CollectionProperty(type=MetaDatas.ActionMetaData)
-		bpy.types.Scene.spritesheet_settings = bpy.props.PointerProperty(type=MetaDatas.SpriteSheetMetaData)
+		bpy.types.Scene.action_meta_data_index = bpy.props.IntProperty(name="Action index")
+		bpy.types.Scene.animlist = bpy.props.CollectionProperty(type=MetaData.ActionMetaData)
+		bpy.types.Scene.spritesheet_settings = bpy.props.PointerProperty(type=MetaData.SpriteSheetMetaData)
 		bpy.types.Scene.lastfilepath = bpy.props.StringProperty()
 		bpy.types.Scene.clonk_content_dir = bpy.props.StringProperty(name="Clonk Content", subtype="DIR_PATH", update=on_clonk_dir_changed)
 		bpy.types.Scene.has_applied_rendersettings = bpy.props.BoolProperty(name="has_applied_rendersettings", default=False)

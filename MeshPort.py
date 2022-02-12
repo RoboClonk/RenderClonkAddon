@@ -16,7 +16,7 @@ import sys
 from enum import Enum
 from pathlib import Path
 
-from . import MetaDatas
+from . import MetaData
 
 def ReadFloatList(string):
 	x = 0
@@ -167,7 +167,7 @@ def import_mesh(path, insert_collection=None):
 					if line[-2] == ":":
 						group_name = line[0:-2]
 
-						mapping = MetaDatas.get_vgroup_mapping(group_name)
+						mapping = MetaData.get_vgroup_mapping(group_name)
 						if mapping:
 							group_name = mapping
 
@@ -288,8 +288,8 @@ def import_mesh(path, insert_collection=None):
 					tex[Modifier.Settings.HEIGHT] = ReadParameter(line,1,1)
 
 
-	if len(new_object.vertex_groups) == 0 and MetaDatas.get_vgroup_mapping(new_object.name):
-		new_object.vertex_groups.new(name=MetaDatas.get_vgroup_mapping(new_object.name))
+	if len(new_object.vertex_groups) == 0 and MetaData.get_vgroup_mapping(new_object.name):
+		new_object.vertex_groups.new(name=MetaData.get_vgroup_mapping(new_object.name))
 		new_object.vertex_groups.active.add(range(len(new_object.data.vertices)), 1.0, "REPLACE")
 
 	# Default: Add to scene collection

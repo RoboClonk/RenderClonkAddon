@@ -13,7 +13,7 @@ import os.path
 import glob
 import os
 
-from . import MetaDatas
+from . import MetaData
 
 class anim_import_state(Enum):
 	UNDEFINED = -1
@@ -121,7 +121,7 @@ def LoadAction(path, animation_target, force_import_action=False):
 
 			elif current_pose_import_state == pose_import_state.BONENAME:
 				current_bone_name = line.replace(":", "").replace("\n", "")
-				mapping = MetaDatas.get_vgroup_mapping(current_bone_name)
+				mapping = MetaData.get_vgroup_mapping(current_bone_name)
 				if mapping:
 					current_bone_name = mapping
 				

@@ -12,7 +12,7 @@ from pathlib import Path
 import os
 from . import AnimPort
 from . import MeshPort
-from . import MetaDatas
+from . import MetaData
 
 script_file = os.path.realpath(__file__)
 AddonDir = os.path.dirname(script_file)
@@ -77,7 +77,7 @@ def ImportActList(path, animfiles, meshfiles, target):
 			if animpath.stem == line:
 				anim_data = AnimPort.LoadAction(animfilepath, target)
 
-				new_entry : MetaDatas.ActionMetaData = bpy.context.scene.animlist.add()
+				new_entry : MetaData.ActionMetaData = bpy.context.scene.animlist.add()
 				new_entry.action = anim_data["Action"]
 				if bpy.context.scene.render.resolution_x != anim_data["Width"] or bpy.context.scene.render.resolution_y != anim_data["Height"]:
 					new_entry.override_resolution = True

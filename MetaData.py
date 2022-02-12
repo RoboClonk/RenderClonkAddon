@@ -1,5 +1,5 @@
 #--------------------------
-# MetaDatas: Including data structures for action data
+# MetaData: Including data structures for action data
 # 11.02.2022
 #--------------------------
 # Robin Hohnsbeen (Ryou)
