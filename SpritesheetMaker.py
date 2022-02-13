@@ -310,6 +310,15 @@ def GetValidActionEntries():
 
 	return valid_action_entries
 
+def CanWriteFile(path):
+	if os.path.exists(path):
+		if os.path.isfile(path):
+			return os.access(path, os.W_OK)
+		else:
+			return False
+
+def CanReadFile(path):
+	return os.access(path, os.R_OK)
 
 def DoesActmapExist():
 	path = os.path.join(GetOutputPath(), "ActMap.txt") 
@@ -322,6 +331,7 @@ def DoesDefCoreExist():
 def ReadIni(filepath):
 	file_content = []
 
+	file = None
 	if os.path.exists(filepath):
 		try:
 			# opening the file in read mode
@@ -354,11 +364,13 @@ def ReadIni(filepath):
 			print("There is no file at path " + filepath)
 
 		finally:
-			file.close()
+			if file:
+				file.close()
 			
 	return file_content
 
 def PrintIni(filepath, file_content):
+	file = None
 	try:
 		file = open(filepath, "w")
 		
@@ -379,7 +391,8 @@ def PrintIni(filepath, file_content):
 		print("Could not open file at " + filepath)
 
 	finally:
-		file.close()
+		if file:
+			file.close()
 		
 
 def PrintActmap(path, sprite_strips, valid_action_entries):
@@ -388,6 +401,8 @@ def PrintActmap(path, sprite_strips, valid_action_entries):
 	# Get old actmap data
 	file_content = []
 	if os.path.exists(actmap_path):
+		if CanReadFile(actmap_path) == False or CanWriteFile(actmap_path) == False:
+			return "ERROR", "Need read/write permissions at output path. Aborted."
 		file_content = ReadIni(actmap_path)
 	else:
 		print("No old Actmap.txt found. Creating new..")
@@ -429,7 +444,7 @@ def PrintActmap(path, sprite_strips, valid_action_entries):
 
 	# Save content
 	PrintIni(actmap_path, output_content)
-
+	return "INFO", "Exported ActMap.txt"
 
 def PrintDefCore(path, sprite_strips, valid_action_entries):
 	defcore_path = os.path.join(path, "DefCore.txt")
@@ -437,9 +452,13 @@ def PrintDefCore(path, sprite_strips, valid_action_entries):
 	# Get old defcore data
 	file_content = []
 	if os.path.exists(defcore_path):
+		if CanReadFile(defcore_path) == False or CanWriteFile(defcore_path) == False:
+			return "ERROR", "Need read/write permissions at output path. Aborted."
 		file_content = ReadIni(defcore_path)
 	else:
 		print("No old DefCore.txt found. Creating new..")
+
+	
 
 	# Prepare output content
 	output_content = []
@@ -458,15 +477,18 @@ def PrintDefCore(path, sprite_strips, valid_action_entries):
 	y_offset = -math.floor(bpy.context.scene.render.resolution_y / 2.0)
 	content_section["Offset"] = str(x_offset) + "," + str(y_offset)
 
-	picture = {"x" : str(0), "y" : str(0), "w" : str(bpy.context.scene.render.resolution_x), "h" : str(bpy.context.scene.render.resolution_y)}
+	picture = {
+		"x" : str(0), 
+		"y" : str(0), 
+		"w" : str(math.floor(bpy.context.scene.render.resolution_x*get_res_multiplier())), 
+		"h" : str(math.floor(bpy.context.scene.render.resolution_y*get_res_multiplier()))}
 	for action_entry in valid_action_entries:
 		if action_entry.render_type_enum == "Picture":
 			strip = sprite_strips[action_entry.action.name]
-			picture["x"] = str(strip["X_pos"])
-			picture["y"] = str(strip["Y_pos"])
-			picture["w"] = str(strip["Sprite_Width"])
-			picture["h"] = str(strip["Sprite_Height"])
-
+			picture["x"] = str(math.floor(strip["X_pos"]*get_res_multiplier()))
+			picture["y"] = str(math.floor(strip["Y_pos"]*get_res_multiplier()))
+			picture["w"] = str(math.floor(strip["Sprite_Width"]*get_res_multiplier()))
+			picture["h"] = str(math.floor(strip["Sprite_Height"]*get_res_multiplier()))
 			break
 
 	content_section["Picture"] = picture["x"] + "," + picture["y"] + "," + picture["w"] + "," + picture["h"]
@@ -476,9 +498,10 @@ def PrintDefCore(path, sprite_strips, valid_action_entries):
 	if bpy.context.scene.render.resolution_percentage != 100:
 		content_section["Scale"] = str(bpy.context.scene.render.resolution_percentage)
 
-
 	# Save content
 	PrintIni(defcore_path, output_content)
+	return "INFO", "Exported DefCore.txt"
+
 
 current_action_name = ""
 current_sheet_number = 1
@@ -532,16 +555,25 @@ class TIMER_OT(bpy.types.Operator):
 		self.output_image = bpy.data.images.new(self.output_image_name, width=self.sheet_width, height=self.sheet_height)
 		print("Spritesheetdimensions: " + str(self.sheet_width) + "x" + str(self.sheet_height))
 
+		self.replacement_materials = GetMaterialsToReplace()
+
 		# Prepare Path
 		self.output_directorypath = GetOutputPath()
 		if context.scene.custom_output_dir != "":
 			self.output_directorypath = bpy.path.abspath(context.scene.custom_output_dir)
 			if not os.path.exists(self.output_directorypath):
 				self.cancel(context)
-				self.report({"ERROR"}, f"Custom Directory not found.")
+				self.report({"ERROR"}, "Custom Directory not found.")
 				return {'RUNNING_MODAL'}
 		else:
 			self.output_directorypath = os.path.join(self.output_directorypath, "spritesheets")
+
+		image_output_path = os.path.join(self.output_directorypath, self.output_image_name)
+		if os.path.exists(image_output_path):
+			if CanReadFile(image_output_path) == False or CanWriteFile(image_output_path) == False:
+				self.cancel(context)
+				self.report({"ERROR"}, "Need read/write permissions at output path. Aborted.")
+				return {'RUNNING_MODAL'}
 
 		global current_action_name
 		current_action_name = ""
@@ -550,7 +582,6 @@ class TIMER_OT(bpy.types.Operator):
 		current_sheet_number = 1
 		current_max_sheets = 1
 
-		self.replacement_materials = GetMaterialsToReplace()
 		if self.set_overlay_material:
 			ReplaceOverlayMaterials(self.replacement_materials, replace_overlay=self.replace_overlay_material)
 			current_max_sheets = 2
@@ -567,7 +598,6 @@ class TIMER_OT(bpy.types.Operator):
 		self.current_frame_number = 0
 
 		context.scene.is_rendering_spritesheet = True
-		
 
 		self.total_frames = 0
 		for entry in self.action_entries:
