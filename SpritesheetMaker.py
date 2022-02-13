@@ -542,6 +542,8 @@ class TIMER_OT(bpy.types.Operator):
 	total_frames = 1
 	current_total_frames = 0
 
+	has_been_cancelled = False
+
 	def execute(self, context):
 		wm = context.window_manager
 		self._timer = wm.event_timer_add(0.005, window=context.window)
@@ -568,7 +570,8 @@ class TIMER_OT(bpy.types.Operator):
 		else:
 			self.output_directorypath = os.path.join(self.output_directorypath, "spritesheets")
 
-		image_output_path = os.path.join(self.output_directorypath, self.output_image_name)
+		image_output_path = os.path.join(self.output_directorypath, self.output_image_name + ".png")
+		print("Output" + image_output_path)
 		if os.path.exists(image_output_path):
 			if CanReadFile(image_output_path) == False or CanWriteFile(image_output_path) == False:
 				self.cancel(context)
@@ -608,7 +611,7 @@ class TIMER_OT(bpy.types.Operator):
 
 
 	def modal(self, context: bpy.types.Context, event: bpy.types.Event):
-		if event.type in {'ESC'}:
+		if event.type in {'ESC'} or self.has_been_cancelled:
 			self.cancel(context)
 			return {'CANCELLED'}
 
@@ -709,6 +712,7 @@ class TIMER_OT(bpy.types.Operator):
 				if self.set_overlay_material == True and self.replace_overlay_material == False:
 					bpy.ops.timer.progress(output_image_name="Overlay", set_overlay_material=True, replace_overlay_material=True)
 
+				self.report({"INFO"}, "Finished rendering: %s" % (self.output_image_name))
 				return {'FINISHED'}
 
 		
@@ -732,6 +736,7 @@ class TIMER_OT(bpy.types.Operator):
 		wm = context.window_manager
 		wm.event_timer_remove(self._timer)
 		context.scene.is_rendering_spritesheet = False
+		self.has_been_cancelled = True
 
 preview_active = False
 
