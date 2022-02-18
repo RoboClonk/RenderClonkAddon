@@ -620,8 +620,6 @@ class TIMER_OT(bpy.types.Operator):
 			
 			# Prepare for new action strip
 			if self.render_state == 0:
-				print("Sheetwidth " + str(self.sheet_width))
-
 				current_action = self.action_entries[self.current_action_index]
 				prepare_action(current_action)
 				if current_action.find_material_name != "" and current_action.replace_material != None:
@@ -660,10 +658,14 @@ class TIMER_OT(bpy.types.Operator):
 				sprite_pixel_data = np.zeros((sprite_height, sprite_width, 4), 'f')
 				# Fast copy of pixel data from bpy.data to numpy array.
 				rendered_sprite_image.pixels.foreach_get(sprite_pixel_data.ravel())
+				# Cleanup
+				bpy.data.images.remove(rendered_sprite_image)
 
 				# Paste sprite onto sheet
 				self.strip_image_data[:sprite_height, self.current_frame_number*sprite_width:(self.current_frame_number+1)*sprite_width, :] = sprite_pixel_data[:, :, :]
-			
+
+
+
 				self.current_frame_number += 1
 				if self.current_frame_number == current_action.max_frames or current_action.render_type_enum == "Picture":
 					self.render_state = 2
@@ -732,6 +734,9 @@ class TIMER_OT(bpy.types.Operator):
 				
 		if self.set_overlay_material and len(self.replacement_materials) > 0:
 			ResetOverlayMaterials(self.replacement_materials)
+
+		if self.output_image:
+			bpy.data.images.remove(self.output_image)
 
 		wm = context.window_manager
 		wm.event_timer_remove(self._timer)
