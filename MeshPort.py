@@ -187,17 +187,22 @@ def import_mesh(path, insert_collection=None):
 				param_name, values = GetParameters(line)
 				if param_name == "Name":
 
+					reuse_materials = False
 					current_mat_name = values[0][0:-1]
 					mat : bpy.types.Material = None
 					if bpy.data.materials.find(current_mat_name) > -1:
 						mat = bpy.data.materials[current_mat_name]
+						reuse_materials = True
 					else:
 						mat = bpy.data.materials.new(name=current_mat_name)
+						mat.use_nodes = True
 					
 					current_mat_name = mat.name
 					new_object.data.materials.append(mat)
 
-					mat.use_nodes = True
+					if reuse_materials:
+						# Just ignore the next lines about materials
+						mode = mesh_import_state.EMPTY
 					
 				elif param_name == "Color":
 					bpy.data.materials.get(current_mat_name).node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = [float(values[0]), float(values[1]), float(values[2]), 1.0]
