@@ -86,7 +86,6 @@ def LoadAction(path, animation_target, force_import_action=False):
 	file = open(path, "r")
 	lines = file.readlines()
 	
-	
 	current_bone_name = ""
 	current_frame = 0
 	current_pose_import_state = pose_import_state.BONENAME
@@ -102,7 +101,6 @@ def LoadAction(path, animation_target, force_import_action=False):
 				return anim_data
 
 			mode = anim_import_state.ACTION
-			
 			
 		elif mode == anim_import_state.DATA:
 			line = line.split("=")

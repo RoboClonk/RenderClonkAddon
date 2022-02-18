@@ -186,7 +186,13 @@ def get_action_visible_objects(action_entry : MetaData.ActionMetaData):
 		for object in action_entry.additional_collection.objects:
 			visible_objects.append(object)
 
-	return visible_objects
+	# Make sure no objects that live in inactive collections are used.
+	visible_objects_filtered = []
+	for object in visible_objects:
+		if object.name in bpy.context.view_layer.objects:
+			visible_objects_filtered.append(object)
+
+	return visible_objects_filtered
 
 def reset_object(object):
 	object.location = [0, 0, 0]
@@ -209,7 +215,7 @@ def prepare_action(action_entry : MetaData.ActionMetaData):
 	else:
 		reset_object(bpy.context.scene.anim_target)
 
-	for object in bpy.data.objects:
+	for object in bpy.context.view_layer.objects:
 		object.hide_set(True)
 		object.hide_render = True
 

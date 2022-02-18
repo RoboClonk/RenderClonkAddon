@@ -126,7 +126,6 @@ def import_mesh(path, insert_collection=None):
 	faceloop_index = 0 # This is used to measure at what UV index we are. It depends on the number of vertices per face we checked.
 	current_mat_name = ""
 
-	# TODO: Progressbar
 	for line in lines:
 		if line[0] == "[":
 			
