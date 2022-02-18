@@ -1,3 +1,4 @@
 .vscode/
 *.blend1
 __pycache__/
+Releases/
