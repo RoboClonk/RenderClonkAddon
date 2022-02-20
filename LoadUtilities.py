@@ -61,6 +61,7 @@ def ImportActList(path, animfiles, meshfiles, target):
 
 	print("Looking in " + str(len(animfiles)) + " animfiles")
 
+	animations_not_found = []
 	for line in lines:
 		line = line.replace("\n", "")
 		if line == "[Actions]":
@@ -70,7 +71,7 @@ def ImportActList(path, animfiles, meshfiles, target):
 		if is_reading_actions == False:
 			continue
 
-				
+		found_animation = False
 		for animfilepath in animfiles:
 			animpath = Path(animfilepath)
 
@@ -87,11 +88,21 @@ def ImportActList(path, animfiles, meshfiles, target):
 
 				_ImportToolsIfAny(new_entry, anim_data, meshfiles)
 				
+				found_animation = True
 				break
 
-
+		if found_animation == False:
+			animations_not_found.append(line)
 
 	file.close()
+
+	if len(animations_not_found) > 0:
+		missing_actions = ""
+		for animation in animations_not_found:
+			missing_actions += animation + ", "
+		return "WARNING", "Could not find actions: %s" % [missing_actions]
+	else:
+		return "INFO", "Imported all actions from act file."
 
 def AppendRenderClonkSetup():
 	global AddonDir

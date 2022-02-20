@@ -504,7 +504,10 @@ class OT_ActListFilebrowser(bpy.types.Operator, ImportHelper):
 			if bpy.data.collections.find("ClonkRig") == -1:
 				raise AssertionError("No Collection named ClonkRig found.")
 			bpy.context.scene.always_rendered_objects = bpy.data.collections["ClonkRig"]
-			LoadUtilities.ImportActList(self.filepath, found_actions, found_meshes, bpy.context.scene.anim_target)
+			reporttype, message = LoadUtilities.ImportActList(self.filepath, found_actions, found_meshes, bpy.context.scene.anim_target)
+
+
+			self.report({reporttype}, "%s" % [message])
 
 		else:
 			print(self.filepath + " is no Actionlist!")
