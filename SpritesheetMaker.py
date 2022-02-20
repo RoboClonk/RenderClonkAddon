@@ -423,35 +423,41 @@ def PrintActmap(path):
 	else:
 		print("No old Actmap.txt found. Creating new..")
 
-
 	# What section in the file is listed explicitly in the addon?
 	remaining_action_entries = valid_action_entries.copy()
 	remaining_file_content = file_content.copy()
 	section_descriptions = []
-	for action_index, action_entry in enumerate(valid_action_entries):
-		for content_index, content_section in enumerate(file_content):
+	for action_entry in valid_action_entries:
+		for content_section in file_content:
 			if content_section["Name"] == GetActionName(action_entry):
 				section_descriptions.append({"Action" : action_entry, "FullCopy" : True, "Section" : content_section})
-				remaining_action_entries.pop(action_index)
-				remaining_file_content.pop(content_index)
+				remaining_action_entries.remove(action_entry)
+				remaining_file_content.remove(content_section)
 				break
-
+	
 	# What file section is related to what action but not explicitly listed in the addon?
-	for section_description in section_descriptions:
-		for content_index, content_section in enumerate(remaining_file_content):	
+	copied_descriptions = section_descriptions.copy()
+	for section_index, section_description in enumerate(section_descriptions):
+		for content_section in remaining_file_content:	
 			if content_section["Facet"] == section_description["Section"]["Facet"]:
-				section_descriptions.append({"Action" : section_description["Action"], "FullCopy" : False, "Section" : content_section})
+				new_description = {"Action" : section_description["Action"], "FullCopy" : False, "Section" : content_section}
+				# Put it always after the related description
+				insertion_index = copied_descriptions.index(section_description)
+				copied_descriptions.insert(insertion_index+1, new_description) # Insert checks array bounds for us.
+					
+	section_descriptions = copied_descriptions
 
+	
 	# What remaining actions are not listed in the file? -> Create new sections
-	for action_index, action_entry in enumerate(remaining_action_entries):
+	for action_entry in remaining_action_entries:
 		# But omit pictures .. 
 		if action_entry.render_type_enum == "Picture":
 			continue
 
 		content_section = {}
 		content_section["SectionName"] = "[Action]"
-
 		section_descriptions.append({"Action" : action_entry, "FullCopy" : True, "Section" : content_section})
+
 
 	# Update content
 	output_content = []
