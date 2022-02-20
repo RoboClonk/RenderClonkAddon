@@ -31,6 +31,7 @@ bl_info = {
 # 11.02.2022
 # Robin Hohnsbeen (Ryou)
 
+from ast import alias
 import math
 import bpy
 from bpy.props import StringProperty, BoolProperty
@@ -345,6 +346,11 @@ class ACTIONSETTINGS_PT_SubPanel(bpy.types.Panel):
 				frame_row.prop(anim_entry, "start_frame")
 				frame_row.prop(anim_entry, "max_frames")
 
+			layout.prop(anim_entry, "use_alternative_name")
+			if anim_entry.use_alternative_name:
+				action_data_layout2 = layout.row(align=True)
+				action_data_layout2.prop(anim_entry, "alternative_name", text="Name")
+
 			layout.prop(anim_entry, "override_resolution")
 			if anim_entry.override_resolution:
 				action_data_layout2 = layout.row(align=True)
@@ -533,7 +539,14 @@ class ACTION_UL_actionslots(bpy.types.UIList):
 				icon_name = "ARMATURE_DATA"
 				if item.render_type_enum == "Picture":
 					icon_name = "USER"
-				entry_layout.prop(item.action, "name", text=str(index), emboss=False, icon=icon_name, expand=False)
+				
+				alternate_name_layout = entry_layout.row(align=True)
+				alternate_name_layout.alignment = "LEFT"
+				alternate_name_layout.label(text=str(index) + ":")
+				if item.use_alternative_name and len(item.alternative_name) > 0:	
+					alternate_name_layout.label(text=" \"" + item.alternative_name + "\"", icon=icon_name)
+				else:
+					alternate_name_layout.prop(item.action, "name", text="", emboss=False, icon=icon_name, expand=True)
 			
 			if item.additional_object_enum == "1_Object" and item.additional_object != None:
 				object_count = 1

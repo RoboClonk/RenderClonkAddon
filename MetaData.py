@@ -24,7 +24,7 @@ class ActionMetaData(bpy.types.PropertyGroup):
 		default=False, 
 		description="In case you want to have a separate clonk action that references the same blender action. e.g Sword Fight, Axe Fight. Each can use the same blender action but use different tools."
 	)
-	alternative_name : bpy.props.StringProperty(name='Name Override', default="", description="Fill in, if you want this action to have a different name. This is only usefull if two entries share the same action")
+	alternative_name : bpy.props.StringProperty(name='Name Override', default="", maxlen=25, description="Fill in, if you want this action to have a different name. This is only usefull if two entries share the same action")
 	is_rendered : bpy.props.BoolProperty(
 		name='Is Rendered To Spritesheet', 
 		default=True, 
