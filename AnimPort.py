@@ -59,7 +59,7 @@ def LoadAction(path, animation_target, force_import_action=False):
 	if os.path.exists(path) == False:
 		raise FileNotFoundError("No valid action file at: " + path)
 
-	print("Import Action " + str(filename))
+	
 
 	actions = bpy.data.actions
 	current_action = 0
@@ -68,10 +68,12 @@ def LoadAction(path, animation_target, force_import_action=False):
 	if actions.find(filename) > -1:
 		current_action = actions[filename]
 		old_action_found = True
+		print("Reuse Action \"" + str(filename) + "\"")
 
 	if not current_action:
 		current_action = actions.new(name=filename)
 		current_action.use_fake_user = True
+		print("Import Action \"" + str(filename) + "\"")
 
 	armature_ob = animation_target
 	

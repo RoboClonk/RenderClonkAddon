@@ -408,10 +408,17 @@ def PrintIni(filepath, file_content):
 			file.close()
 		
 
-def PrintActmap(path):
+def PrintActmap(path, remove_unused_sections=False):
 	valid_action_entries = GetValidActionEntries()
-	sheet_width, sheet_height, sprite_strips = GetSpritesheetInfo(valid_action_entries)
+
+	action_entry_names = set()
+	for entry in valid_action_entries:
+		if GetActionName(entry) not in action_entry_names:
+			action_entry_names.add(GetActionName(entry))
+		else:
+			return "ERROR", "Can't have two actions with the same name: %s. Use \"override name\" in one of each action." % [GetActionName(entry)]
 	
+	sheet_width, sheet_height, sprite_strips = GetSpritesheetInfo(valid_action_entries)
 	actmap_path = os.path.join(path, "ActMap.txt")
 	
 	# Get old actmap data
@@ -436,6 +443,7 @@ def PrintActmap(path):
 				break
 	
 	# What file section is related to what action but not explicitly listed in the addon?
+	omitted_sections = remaining_file_content.copy()
 	copied_descriptions = section_descriptions.copy()
 	for section_index, section_description in enumerate(section_descriptions):
 		for content_section in remaining_file_content:	
@@ -444,6 +452,7 @@ def PrintActmap(path):
 				# Put it always after the related description
 				insertion_index = copied_descriptions.index(section_description)
 				copied_descriptions.insert(insertion_index+1, new_description) # Insert checks array bounds for us.
+				omitted_sections.remove(content_section)
 					
 	section_descriptions = copied_descriptions
 
@@ -479,9 +488,21 @@ def PrintActmap(path):
 
 		output_content.append(content_section)
 
+
+	if remove_unused_sections == False:
+		output_content = output_content + omitted_sections
+
+	unmatched_actions = ""
+	for section in omitted_sections:
+		unmatched_actions += section["Name"] + ", "
+
 	# Save content
 	PrintIni(actmap_path, output_content)
-	return "INFO", "Exported ActMap.txt"
+	if len(unmatched_actions) > 0:
+		return "Warning", "Exported ActMap.txt but some actions couldn't be matched: %s. You can create entries for it in the action list and export the ActMap again." % [unmatched_actions]
+	else:
+		return "INFO", "Exported ActMap.txt"
+
 
 def PrintDefCore(path):
 	valid_action_entries = GetValidActionEntries()
