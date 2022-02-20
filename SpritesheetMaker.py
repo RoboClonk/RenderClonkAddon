@@ -22,6 +22,13 @@ def GetOutputPath():
 		save_path = os.path.dirname(bpy.data.filepath)
 	return os.path.join(save_path, "output_render")
 
+def GetActionName(action_entry : MetaData.ActionMetaData):
+	name = action_entry.action.name
+	if action_entry.use_alternative_name and len(action_entry.alternative_name) > 0:
+		name = action_entry.alternative_name
+
+	return name
+
 def get_res_multiplier():
 	return bpy.context.scene.render.resolution_percentage / 100.0
 
@@ -76,7 +83,7 @@ def GetSpriteStripInfo(action_entry, x_position, y_position):
 		"X_pos" : x_position,
 		"Y_pos" : y_position,
 		"Length" : action_entry.max_frames,
-		"Name" : action_entry.action.name,
+		"Name" : GetActionName(action_entry),
 		"Sprite_Height" : sprite_height,
 		"Sprite_Width" : sprite_width
 	}
@@ -115,7 +122,7 @@ def GetSpritesheetInfo(action_entries):
 			current_y_position += last_height
 			row_height = 0
 		
-		sheet_strips[action_entry.action.name] = GetSpriteStripInfo(action_entry, current_x_position, current_y_position)
+		sheet_strips[GetActionName(action_entry)] = GetSpriteStripInfo(action_entry, current_x_position, current_y_position)
 		
 		current_x_position += sheetstrip_width
 		action_index += 1
@@ -148,7 +155,7 @@ def GetSpritesheetInfo(action_entries):
 				rows_changed.append(row_number)
 
 				if height_remaining <= 0:
-					sheet_strips[picture.action.name] = GetSpriteStripInfo(picture, x_begin, y_begin)
+					sheet_strips[GetActionName(picture)] = GetSpriteStripInfo(picture, x_begin, y_begin)
 					found_place = True
 					for changed_row_number in rows_changed:
 						rows[changed_row_number]["x_remaining"] = max(sheet_width - x_begin + sprite_width, 0)
@@ -164,7 +171,7 @@ def GetSpritesheetInfo(action_entries):
 			y_begin = sheet_height
 			x_begin = 0
 			strip_info = GetSpriteStripInfo(picture, x_begin, y_begin)
-			sheet_strips[picture.action.name] = strip_info
+			sheet_strips[GetActionName(picture)] = strip_info
 			
 			sheet_height += strip_info["Height"]
 			rows.append({"x_remaining" : strip_info["Width"], "row_height" : strip_info["Height"]})
@@ -401,7 +408,10 @@ def PrintIni(filepath, file_content):
 			file.close()
 		
 
-def PrintActmap(path, sprite_strips, valid_action_entries):
+def PrintActmap(path):
+	valid_action_entries = GetValidActionEntries()
+	sheet_width, sheet_height, sprite_strips = GetSpritesheetInfo(valid_action_entries)
+	
 	actmap_path = os.path.join(path, "ActMap.txt")
 	
 	# Get old actmap data
@@ -413,46 +423,64 @@ def PrintActmap(path, sprite_strips, valid_action_entries):
 	else:
 		print("No old Actmap.txt found. Creating new..")
 
-	# Prepare output content
-	output_content = []
-	for action_entry in valid_action_entries:
+
+	# What section in the file is listed explicitly in the addon?
+	remaining_action_entries = valid_action_entries.copy()
+	remaining_file_content = file_content.copy()
+	section_descriptions = []
+	for action_index, action_entry in enumerate(valid_action_entries):
+		for content_index, content_section in enumerate(file_content):
+			if content_section["Name"] == GetActionName(action_entry):
+				section_descriptions.append({"Action" : action_entry, "FullCopy" : True, "Section" : content_section})
+				remaining_action_entries.pop(action_index)
+				remaining_file_content.pop(content_index)
+				break
+
+	# What file section is related to what action but not explicitly listed in the addon?
+	for section_description in section_descriptions:
+		for content_index, content_section in enumerate(remaining_file_content):	
+			if content_section["Facet"] == section_description["Section"]["Facet"]:
+				section_descriptions.append({"Action" : section_description["Action"], "FullCopy" : False, "Section" : content_section})
+
+	# What remaining actions are not listed in the file? -> Create new sections
+	for action_index, action_entry in enumerate(remaining_action_entries):
+		# But omit pictures .. 
 		if action_entry.render_type_enum == "Picture":
 			continue
-		action_name = action_entry.action.name
-		found_entry = False
-		for content_section in file_content:
-			if content_section["Name"] == action_name: # This also filters entries, that are not used.
-				output_content.append(content_section)
-				found_entry = True
-				break
-		
-		if found_entry == False:
-			content_section = {}
-			content_section["SectionName"] = "[Action]"
-			content_section["Name"] = action_name
-			output_content.append(content_section)
+
+		content_section = {}
+		content_section["SectionName"] = "[Action]"
+
+		section_descriptions.append({"Action" : action_entry, "FullCopy" : True, "Section" : content_section})
 
 	# Update content
-	for action_entry in valid_action_entries:
-		if action_entry.render_type_enum == "Picture":
-			continue
-		action_name = action_entry.action.name
-		for content_section_index in range(len(output_content)):
-			if output_content[content_section_index]["Name"] == action_name:
+	output_content = []
+	for section_description in section_descriptions:
+		content_section = section_description["Section"]
+		reference_action = section_description["Action"]
+		
+		sprite_strip = sprite_strips[GetActionName(reference_action)]
 
-				output_content[content_section_index]["Length"] =  str(sprite_strips[action_name]["Length"])
+		if section_description["FullCopy"]:
+			content_section["Name"] = GetActionName(reference_action)
+			content_section["Length"] =  str(sprite_strip["Length"])
 
-				x_pos = str(sprite_strips[action_name]["X_pos"])
-				y_pos = str(sprite_strips[action_name]["Y_pos"])
-				sprite_width = str(sprite_strips[action_name]["Sprite_Width"])
-				sprite_height = str(sprite_strips[action_name]["Sprite_Height"])
-				output_content[content_section_index]["Facet"] = x_pos + "," + y_pos + "," + sprite_width + "," + sprite_height
+		x_pos = str(sprite_strip["X_pos"])
+		y_pos = str(sprite_strip["Y_pos"])
+		sprite_width = str(sprite_strip["Sprite_Width"])
+		sprite_height = str(sprite_strip["Sprite_Height"])
+		content_section["Facet"] = x_pos + "," + y_pos + "," + sprite_width + "," + sprite_height
+
+		output_content.append(content_section)
 
 	# Save content
 	PrintIni(actmap_path, output_content)
 	return "INFO", "Exported ActMap.txt"
 
-def PrintDefCore(path, sprite_strips, valid_action_entries):
+def PrintDefCore(path):
+	valid_action_entries = GetValidActionEntries()
+	sheet_width, sheet_height, sprite_strips = GetSpritesheetInfo(valid_action_entries)
+
 	defcore_path = os.path.join(path, "DefCore.txt")
 	
 	# Get old defcore data
@@ -490,7 +518,7 @@ def PrintDefCore(path, sprite_strips, valid_action_entries):
 		"h" : str(math.floor(bpy.context.scene.render.resolution_y*get_res_multiplier()))}
 	for action_entry in valid_action_entries:
 		if action_entry.render_type_enum == "Picture":
-			strip = sprite_strips[action_entry.action.name]
+			strip = sprite_strips[GetActionName(action_entry)]
 			picture["x"] = str(math.floor(strip["X_pos"]*get_res_multiplier()))
 			picture["y"] = str(math.floor(strip["Y_pos"]*get_res_multiplier()))
 			picture["w"] = str(math.floor(strip["Sprite_Width"]*get_res_multiplier()))
@@ -638,7 +666,7 @@ class TIMER_OT(bpy.types.Operator):
 				self.render_state = 1
 				self.current_frame_number = 0
 				global current_action_name
-				current_action_name = current_action.action.name
+				current_action_name = GetActionName(current_action)
 
 
 			# Render one sprite of sprite strip
@@ -647,7 +675,7 @@ class TIMER_OT(bpy.types.Operator):
 				
 				if current_action.render_type_enum != "Picture":
 					bpy.context.scene.frame_current = self.current_frame_number + current_action.start_frame
-				output_filepath = os.path.join(GetOutputPath(), "sprites", current_action.action.name + "_" + str(bpy.context.scene.frame_current))
+				output_filepath = os.path.join(GetOutputPath(), "sprites", GetActionName(current_action) + "_" + str(bpy.context.scene.frame_current))
 				
 				x_dim, y_dim = get_current_render_dimensions(current_action)
 				bpy.context.scene.render.resolution_x = x_dim
@@ -671,7 +699,6 @@ class TIMER_OT(bpy.types.Operator):
 				self.strip_image_data[:sprite_height, self.current_frame_number*sprite_width:(self.current_frame_number+1)*sprite_width, :] = sprite_pixel_data[:, :, :]
 
 
-
 				self.current_frame_number += 1
 				if self.current_frame_number == current_action.max_frames or current_action.render_type_enum == "Picture":
 					self.render_state = 2
@@ -682,7 +709,7 @@ class TIMER_OT(bpy.types.Operator):
 			# Paste sprite strip onto sheet
 			if self.render_state == 2:
 				current_action : MetaData.ActionMetaData = self.action_entries[self.current_action_index]
-				sprite_strip = self.sprite_strips[current_action.action.name]
+				sprite_strip = self.sprite_strips[GetActionName(current_action)]
 
 				x_pos = math.floor(sprite_strip["X_pos"] * get_res_multiplier())
 				y_pos = math.floor(sprite_strip["Y_pos"] * get_res_multiplier())

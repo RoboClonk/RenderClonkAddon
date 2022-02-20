@@ -182,9 +182,6 @@ class Menu_Button(bpy.types.Operator):
 			bpy.ops.screen.animation_cancel()
 
 		if self.menu_active == 10:
-			valid_action_entries = SpritesheetMaker.GetValidActionEntries()
-			sheet_width, sheet_height, sprite_strips = SpritesheetMaker.GetSpritesheetInfo(valid_action_entries)
-
 			# Prepare Path
 			output_directorypath = SpritesheetMaker.GetOutputPath()
 			if context.scene.custom_output_dir != "":
@@ -194,14 +191,11 @@ class Menu_Button(bpy.types.Operator):
 					self.report({"ERROR"}, f"Custom Directory not found.")
 					return {'FINISHED'}
 
-			info_type, info_text = SpritesheetMaker.PrintActmap(output_directorypath, sprite_strips, valid_action_entries)
+			info_type, info_text = SpritesheetMaker.PrintActmap(output_directorypath)
 			self.report({info_type}, info_text)
 
 
 		if self.menu_active == 11:
-			valid_action_entries = SpritesheetMaker.GetValidActionEntries()
-			sheet_width, sheet_height, sprite_strips = SpritesheetMaker.GetSpritesheetInfo(valid_action_entries)
-
 			# Prepare Path
 			output_directorypath = SpritesheetMaker.GetOutputPath()
 			if context.scene.custom_output_dir != "":
@@ -211,7 +205,7 @@ class Menu_Button(bpy.types.Operator):
 					self.report({"ERROR"}, f"Custom Directory not found.")
 					return {'FINISHED'}
 
-			info_type, info_text = SpritesheetMaker.PrintDefCore(output_directorypath, sprite_strips, valid_action_entries)
+			info_type, info_text = SpritesheetMaker.PrintDefCore(output_directorypath)
 			self.report({info_type}, info_text)
 			
 

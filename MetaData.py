@@ -19,12 +19,17 @@ class ActionMetaData(bpy.types.PropertyGroup):
 	max_frames : bpy.props.IntProperty(name='Max frames', default=16, min=1, soft_max=256, description="The amount of frames that are rendered for this action")
 	width : bpy.props.IntProperty(name='Pixel width', default=16, min=1, max=2048, description="The pixel width of one sprite image. (Will be multiplied by the resolution percentage (100% => 1.0, 200% => 2.0, ...)")
 	height : bpy.props.IntProperty(name='Pixel height', default=20, min=1, max=2048, description="The pixel height of one sprite image. (Will be multiplied by the resolution percentage (100% => 1.0, 200% => 2.0, ...)")
-	override_name : bpy.props.BoolProperty(
+	use_alternative_name : bpy.props.BoolProperty(
 		name='Override name', 
 		default=False, 
 		description="In case you want to have a separate clonk action that references the same blender action. e.g Sword Fight, Axe Fight. Each can use the same blender action but use different tools."
 	)
 	alternative_name : bpy.props.StringProperty(name='Name Override', default="", description="Fill in, if you want this action to have a different name. This is only usefull if two entries share the same action")
+	is_rendered : bpy.props.BoolProperty(
+		name='Is Rendered To Spritesheet', 
+		default=True, 
+		description="When this is false, it will reference another action and print it with a different name to the ActMap"
+	)
 	render_type_enum : bpy.props.EnumProperty(
 		items={
 			("Spriteanimation", "Spriteanimation", "Render several frames and put them next to each other on the spritesheet.", 0), 
@@ -39,6 +44,8 @@ class ActionMetaData(bpy.types.PropertyGroup):
 	additional_collection : bpy.props.PointerProperty(type=bpy.types.Collection, name='', description="A collection that holds objects that are only visible in this action. This can be used for tools that a clonk is holding for example")
 	find_material_name : bpy.props.StringProperty(name='Find material name', maxlen=32, description="Materials containing that name will be replaced by the replace material.")
 	replace_material : bpy.props.PointerProperty(type=bpy.types.Material, name='Replace material', description="The material that it will be replaced with.")
+	
+
 
 class SpriteSheetMetaData(bpy.types.PropertyGroup):
 	overlay_rendering_enum : bpy.props.EnumProperty(
