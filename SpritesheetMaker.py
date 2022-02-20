@@ -341,6 +341,16 @@ def DoesDefCoreExist():
 	path = os.path.join(GetOutputPath(), "DefCore.txt") 
 	return os.path.exists(path)
 
+def CheckIfActionListIsValid(action_entries):
+	action_entry_names = set()
+	for entry in action_entries:
+		if GetActionName(entry) not in action_entry_names:
+			action_entry_names.add(GetActionName(entry))
+		else:
+			return "ERROR", "Can't have two actions with the same name: %s. Use \"override name\" in one of each action." % (GetActionName(entry))
+
+	return "INFO", "All entries are valid."
+
 def ReadIni(filepath):
 	file_content = []
 
@@ -411,12 +421,10 @@ def PrintIni(filepath, file_content):
 def PrintActmap(path, remove_unused_sections=False):
 	valid_action_entries = GetValidActionEntries()
 
-	action_entry_names = set()
-	for entry in valid_action_entries:
-		if GetActionName(entry) not in action_entry_names:
-			action_entry_names.add(GetActionName(entry))
-		else:
-			return "ERROR", "Can't have two actions with the same name: %s. Use \"override name\" in one of each action." % [GetActionName(entry)]
+	messagetype, message = CheckIfActionListIsValid(valid_action_entries)
+
+	if messagetype == "ERROR":
+		return messagetype, message
 	
 	sheet_width, sheet_height, sprite_strips = GetSpritesheetInfo(valid_action_entries)
 	actmap_path = os.path.join(path, "ActMap.txt")
@@ -591,7 +599,7 @@ class TIMER_OT(bpy.types.Operator):
 	sprite_strips : list
 	output_image_data : np.ndarray
 	strip_image_data : np.ndarray
-	output_image : bpy.types.Image
+	output_image : bpy.types.Image = None
 	output_directorypath : str
 
 	base_x = 16
@@ -605,6 +613,9 @@ class TIMER_OT(bpy.types.Operator):
 
 	has_been_cancelled = False
 
+	cancel_message_type = ""
+	cancel_message = ""
+
 	def execute(self, context):
 		wm = context.window_manager
 		self._timer = wm.event_timer_add(0.005, window=context.window)
@@ -612,6 +623,15 @@ class TIMER_OT(bpy.types.Operator):
 
 		# Prepare Data
 		self.action_entries = GetValidActionEntries()
+
+		messagetype, message = CheckIfActionListIsValid(self.action_entries)
+
+		if messagetype == "ERROR" or messagetype == "WARNING":
+			self.cancel(context)
+			self.cancel_message_type = messagetype
+			self.cancel_message = message
+			return {'RUNNING_MODAL'}
+
 		self.has_render_finished = True
 		self.sheet_width, self.sheet_height, self.sprite_strips = GetSpritesheetInfo(self.action_entries)
 		self.output_image_data = np.zeros((self.sheet_height, self.sheet_width, 4), 'f')
@@ -620,13 +640,16 @@ class TIMER_OT(bpy.types.Operator):
 
 		self.replacement_materials = GetMaterialsToReplace()
 
+
+
 		# Prepare Path
 		self.output_directorypath = GetOutputPath()
 		if context.scene.custom_output_dir != "":
 			self.output_directorypath = bpy.path.abspath(context.scene.custom_output_dir)
 			if not os.path.exists(self.output_directorypath):
 				self.cancel(context)
-				self.report({"ERROR"}, "Custom Directory not found.")
+				self.cancel_message_type = "ERROR"
+				self.cancel_message = "Custom Directory not found. Aborted."
 				return {'RUNNING_MODAL'}
 		else:
 			self.output_directorypath = os.path.join(self.output_directorypath, "spritesheets")
@@ -636,7 +659,8 @@ class TIMER_OT(bpy.types.Operator):
 		if os.path.exists(image_output_path):
 			if CanReadFile(image_output_path) == False or CanWriteFile(image_output_path) == False:
 				self.cancel(context)
-				self.report({"ERROR"}, "Need read/write permissions at output path. Aborted.")
+				self.cancel_message_type = "ERROR"
+				self.cancel_message = "Need read/write permissions at output path. Aborted."
 				return {'RUNNING_MODAL'}
 
 		global current_action_name
@@ -672,9 +696,14 @@ class TIMER_OT(bpy.types.Operator):
 
 
 	def modal(self, context: bpy.types.Context, event: bpy.types.Event):
-		if event.type in {'ESC'} or self.has_been_cancelled:
+		if event.type in {'ESC'}:
 			self.cancel(context)
 			return {'CANCELLED'}
+
+		if self.has_been_cancelled:
+			self.report({self.cancel_message_type}, "%s" % (self.cancel_message))
+			return {'CANCELLED'}
+
 
 		if event.type == "TIMER" and self.has_render_finished:
 			self.has_render_finished = False

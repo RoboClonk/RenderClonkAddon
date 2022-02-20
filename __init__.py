@@ -188,7 +188,6 @@ class Menu_Button(bpy.types.Operator):
 			if context.scene.custom_output_dir != "":
 				output_directorypath = bpy.path.abspath(context.scene.custom_output_dir)
 				if not os.path.exists(output_directorypath):
-					self.cancel(context)
 					self.report({"ERROR"}, f"Custom Directory not found.")
 					return {'FINISHED'}
 
