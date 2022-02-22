@@ -507,7 +507,7 @@ def PrintActmap(path, remove_unused_sections=False):
 	# Save content
 	PrintIni(actmap_path, output_content)
 	if len(unmatched_actions) > 0:
-		return "Warning", "Exported ActMap.txt but some actions couldn't be matched: %s. You can create entries for it in the action list and export the ActMap again." % [unmatched_actions]
+		return "WARNING", "Exported ActMap.txt but some actions couldn't be matched: %s. You can create entries for it in the action list and export the ActMap again." % [unmatched_actions]
 	else:
 		return "INFO", "Exported ActMap.txt"
 
