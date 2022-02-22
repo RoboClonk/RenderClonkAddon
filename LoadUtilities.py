@@ -42,6 +42,7 @@ def _ImportToolsIfAny(action_entry, animdata, meshfiles):
 		new_collection = bpy.data.collections.new(name=animdata["Action"].name + "_tools")
 		new_collection.objects.link(tool1)
 		new_collection.objects.link(tool2)
+		bpy.context.scene.collection.children.link(new_collection)
 		action_entry.additional_object_enum = "2_Collection"
 		action_entry.additional_collection = new_collection
 	elif tool1:
