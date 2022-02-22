@@ -252,7 +252,9 @@ def SetOptimalRenderingSettings():
 	bpy.context.scene.cycles.use_denoising = False
 	bpy.context.scene.cycles.caustics_reflective = False
 	bpy.context.scene.cycles.caustics_refractive = False
-	bpy.context.scene.cycles.max_bounces = 0
+	bpy.context.scene.cycles.max_bounces = 1
+	bpy.context.scene.cycles.diffuse_bounces = 0
+	bpy.context.scene.cycles.glossy_bounces = 1
 	bpy.context.scene.render.use_persistent_data = True
 	bpy.context.scene.cycles.samples = 1024
 	bpy.context.scene.render.image_settings.compression = 0
