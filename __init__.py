@@ -226,9 +226,13 @@ class Action_List_Button(bpy.types.Operator):
 		# Add entry
 		if self.menu_active == 6:
 			item = context.scene.animlist.add()
-			
+
 			if len(bpy.data.actions) > 0:
 				item.action = bpy.data.actions[0]
+
+			if context.scene.action_meta_data_index < len(context.scene.animlist)-1:
+				context.scene.animlist.move(len(context.scene.animlist)-1, context.scene.action_meta_data_index+1)
+				context.scene.action_meta_data_index += 1
 
 		# Remove Item
 		if self.menu_active == 7:
