@@ -86,9 +86,9 @@ class MAIN_PT_SettingsPanel(bpy.types.Panel):
 
 		actlist_layout = layout.column(align=True)
 		actlist_layout.operator(Menu_Button.bl_idname, text="Import Action List (.act)", icon="IMPORT").menu_active = 6
+		#TODO:
 		#actlist_layout.operator(Menu_Button.bl_idname, text="Import ActMap.txt", icon="IMPORT").menu_active = 12
-
-		actlist_layout.label(text="Action List and ActMap will import actions (.anim) and tool meshes (.mesh) as well.", icon="INFO")
+		
 
 		layout.separator()
 

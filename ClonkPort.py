@@ -26,6 +26,7 @@ AddonDir = os.path.dirname(script_file)
 found_meshes = []
 found_actions = []
 found_actionlists = []
+last_search_path = ""
 
 def get_res_multiplier():
 	return bpy.context.scene.render.resolution_percentage / 100.0
@@ -40,6 +41,10 @@ def content_glob_search(path):
 	found_actionlists += glob.glob(os.path.join(path, "*.act"), recursive=False)
 
 def collect_clonk_content_files(path):
+	global last_search_path
+	if last_search_path == path:
+		return
+
 	global found_meshes
 	global found_actions
 	global found_actionlists
@@ -74,7 +79,10 @@ def _ImportToolsIfAny(action_entry, animdata, meshfiles):
 		tool1 = _ImportExtraMesh(animdata["Tool1"], meshfiles)
 	if animdata.get("Tool2"):
 		tool2 = _ImportExtraMesh(animdata["Tool2"], meshfiles)
-		
+	
+	if action_entry == None:
+		return
+
 	if tool1 and tool2:
 		new_collection = bpy.data.collections.new(name=animdata["Action"].name + "_tools")
 		new_collection.objects.link(tool1)
@@ -89,7 +97,7 @@ def _ImportToolsIfAny(action_entry, animdata, meshfiles):
 		action_entry.additional_object_enum = "1_Object"
 		action_entry.additional_object = tool2
 
-def ImportActList(path, animfiles, meshfiles, target):
+def ImportActList(path, animfiles, meshfiles, target, create_entry, import_tools):
 	print("Read act " + path)
 	file = open(path, "r")
 	lines = file.readlines()
@@ -115,8 +123,11 @@ def ImportActList(path, animfiles, meshfiles, target):
 			if animpath.stem == line:
 				anim_data = AnimPort.LoadAction(animfilepath, target)
 
-				new_entry = MetaData.MakeActionEntry(anim_data)
-				_ImportToolsIfAny(new_entry, anim_data, meshfiles)
+				new_entry = None
+				if create_entry:
+					new_entry = MetaData.MakeActionEntry(anim_data)
+				if import_tools:
+					_ImportToolsIfAny(new_entry, anim_data, meshfiles)
 				
 				found_animation = True
 				break
@@ -206,7 +217,6 @@ def GetOrAppendOverlayMaterials():
 		)
 	
 	return bpy.data.materials["Overlay"], bpy.data.materials["Holdout"], bpy.data.materials["Fill"]
-	
 
 def GetOrAppendClonkRig(ReuseOld=True):
 	rig_index = bpy.data.objects.find("ClonkRig")
@@ -270,13 +280,19 @@ class OT_MeshFilebrowser(bpy.types.Operator, ImportHelper):
 
 class OT_AnimFilebrowser(bpy.types.Operator, ImportHelper):
 	bl_idname = "anim.open_filebrowser"
-	bl_label = "Import Animation (.anim)"
+	bl_label = "Import Action (.anim)"
 
 	filter_glob: StringProperty(default="*.anim", options={"HIDDEN"})
 	
 	force_import_action: BoolProperty(name="Force action import", default=False, description="Import action although there is an action with the same name in blender")
+	create_action_entry: BoolProperty(name="Create Action Entry", default=True, description="Create an entry in the actions list")
+	import_tool_mesh: BoolProperty(name="Import Tool Mesh", default=True, description="Import tool meshes if the action references any")
 
 	def execute(self, context):
+		parent_path = Path(self.filepath).parents[1]
+		collect_clonk_content_files(parent_path)
+		global found_meshes
+
 		print(self.filepath)
 
 		extension = Path(self.filepath).suffix
@@ -289,6 +305,11 @@ class OT_AnimFilebrowser(bpy.types.Operator, ImportHelper):
 				return {"CANCELLED"}
 
 			anim_data = AnimPort.LoadAction(self.filepath, clonk_rig, self.force_import_action)
+			new_entry = None
+			if self.create_action_entry:
+				new_entry = MetaData.MakeActionEntry(anim_data)
+			if self.import_tool_mesh:
+				_ImportToolsIfAny(new_entry, anim_data, found_meshes)
 
 			if anim_data.get("ERROR"):
 				self.report({"ERROR"}, f"" + anim_data["ERROR"])
@@ -305,6 +326,9 @@ class OT_ActListFilebrowser(bpy.types.Operator, ImportHelper):
 	bl_label = "Import Actionlist (.act)"
 
 	filter_glob: StringProperty(default="*.act", options={"HIDDEN"})
+	create_action_entry: BoolProperty(name="Create Action Entries", default=True, description="Create entries in the actions list")
+	import_tool_mesh: BoolProperty(name="Import Tool Meshes", default=True, description="Import tool meshes if the actions reference any")
+
 
 	def execute(self, context):
 		parent_path = Path(self.filepath).parents[1]
@@ -314,12 +338,13 @@ class OT_ActListFilebrowser(bpy.types.Operator, ImportHelper):
 		extension = Path(self.filepath).suffix
 		if extension == ".act":
 			global found_actions
+			global found_meshes
 			clonk_rig = GetOrAppendClonkRig()
 			bpy.context.scene.anim_target = clonk_rig
 			if bpy.data.collections.find("ClonkRig") == -1:
 				raise AssertionError("No Collection named ClonkRig found.")
 			bpy.context.scene.always_rendered_objects = bpy.data.collections["ClonkRig"]
-			reporttype, message = ImportActList(self.filepath, found_actions, found_meshes, bpy.context.scene.anim_target)
+			reporttype, message = ImportActList(self.filepath, found_actions, found_meshes, bpy.context.scene.anim_target, self.create_action_entry, self.import_tool_mesh)
 
 
 			self.report({reporttype}, "%s" % [message])
@@ -329,7 +354,6 @@ class OT_ActListFilebrowser(bpy.types.Operator, ImportHelper):
 
 		context.scene.lastfilepath = self.filepath
 		return {"FINISHED"}
-
 
 class OT_ActMapFilebrowser(bpy.types.Operator, ImportHelper):
 	bl_idname = "actmap.open_filebrowser"
@@ -366,11 +390,6 @@ class OT_ActMapFilebrowser(bpy.types.Operator, ImportHelper):
 
 		context.scene.lastfilepath = self.filepath
 		return {"FINISHED"}
-
-
-
-
-
 
 def DoesActmapExist():
 	path = os.path.join(PathUtilities.GetOutputPath(), "ActMap.txt") 
