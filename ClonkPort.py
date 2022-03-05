@@ -370,7 +370,7 @@ class OT_ActMapFilebrowser(bpy.types.Operator, ImportHelper):
 		print(self.filepath)
 
 		extension = Path(self.filepath).name
-		if extension == "ActMap.txt":
+		if "actmap" in extension.lower():
 			global found_actions
 			clonk_rig = GetOrAppendClonkRig()
 			bpy.context.scene.anim_target = clonk_rig
@@ -388,6 +388,7 @@ class OT_ActMapFilebrowser(bpy.types.Operator, ImportHelper):
 
 		else:
 			print(self.filepath + " is no ActMap!")
+			self.report({"ERROR"}, "Could not load file. Make sure the file you tried to load is an actmap.")
 
 		context.scene.lastfilepath = self.filepath
 		return {"FINISHED"}
