@@ -10,7 +10,6 @@
 from enum import Enum
 import bpy
 import os.path
-import glob
 import os
 
 from . import MetaData
@@ -46,6 +45,8 @@ def ResetArmature(armature : bpy.types.Armature):
 		else:
 			bone.rotation_euler = [0, 0, 0]
 		bone.scale =  [1.0, 1.0, 1.0]
+
+
 
 
 def LoadAction(path, animation_target, force_import_action=False):

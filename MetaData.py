@@ -58,6 +58,45 @@ class SpriteSheetMetaData(bpy.types.PropertyGroup):
 	fill_material : bpy.props.PointerProperty(type=bpy.types.Material, name='Fill Material', description="Materials with \"Overlay\" in its name will be replaced with this material upon render")
 
 
+def GetActionName(action_entry : ActionMetaData):
+	name = action_entry.action.name
+	if action_entry.use_alternative_name and len(action_entry.alternative_name) > 0:
+		name = action_entry.alternative_name
+
+	return name
+
+def CheckIfActionListIsValid(action_entries):
+	action_entry_names = set()
+	for entry in action_entries:
+		if GetActionName(entry) not in action_entry_names:
+			action_entry_names.add(GetActionName(entry))
+		else:
+			return "ERROR", "Can't have two actions with the same name: %s. Use \"override name\" in one of each action." % (GetActionName(entry))
+
+	return "INFO", "All entries are valid."
+
+def GetValidActionEntries():
+	valid_action_entries = []
+	for action_index, action_entry in enumerate(bpy.context.scene.animlist):
+		if action_entry.action == None:
+			print("Action " + str(action_index) + " omitted, because no blender action was referenced.")
+			continue
+
+		valid_action_entries.append(action_entry)
+
+	return valid_action_entries
+
+def MakeActionEntry(anim_data):
+	new_entry : ActionMetaData = bpy.context.scene.animlist.add()
+	new_entry.action = anim_data["Action"]
+	if bpy.context.scene.render.resolution_x != anim_data["Width"] or bpy.context.scene.render.resolution_y != anim_data["Height"]:
+		new_entry.override_resolution = True
+	new_entry.height = anim_data["Height"]
+	new_entry.width = anim_data["Width"]
+	new_entry.max_frames = anim_data["Length"]
+
+	return new_entry
+
 vgroup_map = {
 "dagger": "Tool1",
 "arrow": "Tool2",

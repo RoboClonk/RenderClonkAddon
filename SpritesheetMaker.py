@@ -6,7 +6,6 @@
 
 import math
 import bpy
-import mathutils
 import numpy as np
 import os
 from enum import Enum
@@ -14,20 +13,7 @@ from pathlib import Path
 
 from . import MetaData
 from . import AnimPort
-
-
-def GetOutputPath():
-	save_path = bpy.path.abspath("/tmp")
-	if bpy.data.is_saved:
-		save_path = os.path.dirname(bpy.data.filepath)
-	return os.path.join(save_path, "output_render")
-
-def GetActionName(action_entry : MetaData.ActionMetaData):
-	name = action_entry.action.name
-	if action_entry.use_alternative_name and len(action_entry.alternative_name) > 0:
-		name = action_entry.alternative_name
-
-	return name
+from . import PathUtilities
 
 def get_res_multiplier():
 	return bpy.context.scene.render.resolution_percentage / 100.0
@@ -83,7 +69,7 @@ def GetSpriteStripInfo(action_entry, x_position, y_position):
 		"X_pos" : x_position,
 		"Y_pos" : y_position,
 		"Length" : action_entry.max_frames,
-		"Name" : GetActionName(action_entry),
+		"Name" : MetaData.GetActionName(action_entry),
 		"Sprite_Height" : sprite_height,
 		"Sprite_Width" : sprite_width
 	}
@@ -122,7 +108,7 @@ def GetSpritesheetInfo(action_entries):
 			current_y_position += last_height
 			row_height = 0
 		
-		sheet_strips[GetActionName(action_entry)] = GetSpriteStripInfo(action_entry, current_x_position, current_y_position)
+		sheet_strips[MetaData.GetActionName(action_entry)] = GetSpriteStripInfo(action_entry, current_x_position, current_y_position)
 		
 		current_x_position += sheetstrip_width
 		action_index += 1
@@ -155,7 +141,7 @@ def GetSpritesheetInfo(action_entries):
 				rows_changed.append(row_number)
 
 				if height_remaining <= 0:
-					sheet_strips[GetActionName(picture)] = GetSpriteStripInfo(picture, x_begin, y_begin)
+					sheet_strips[MetaData.GetActionName(picture)] = GetSpriteStripInfo(picture, x_begin, y_begin)
 					found_place = True
 					for changed_row_number in rows_changed:
 						rows[changed_row_number]["x_remaining"] = max(sheet_width - x_begin + sprite_width, 0)
@@ -171,7 +157,7 @@ def GetSpritesheetInfo(action_entries):
 			y_begin = sheet_height
 			x_begin = 0
 			strip_info = GetSpriteStripInfo(picture, x_begin, y_begin)
-			sheet_strips[GetActionName(picture)] = strip_info
+			sheet_strips[MetaData.GetActionName(picture)] = strip_info
 			
 			sheet_height += strip_info["Height"]
 			rows.append({"x_remaining" : strip_info["Width"], "row_height" : strip_info["Height"]})
@@ -312,266 +298,6 @@ def ResetOverlayMaterials(materials_to_replace):
 		material_index = material_info["material_index"]
 		material_info["owner"].material_slots[material_index].material = material_info["original_material"]
 
-def GetValidActionEntries():
-	valid_action_entries = []
-	for action_index, action_entry in enumerate(bpy.context.scene.animlist):
-		if action_entry.action == None:
-			print("Action " + str(action_index) + " omitted, because no blender action was referenced.")
-			continue
-
-		valid_action_entries.append(action_entry)
-
-	return valid_action_entries
-
-def CanWriteFile(path):
-	if os.path.exists(path):
-		if os.path.isfile(path):
-			return os.access(path, os.W_OK)
-		else:
-			return False
-
-def CanReadFile(path):
-	return os.access(path, os.R_OK)
-
-def DoesActmapExist():
-	path = os.path.join(GetOutputPath(), "ActMap.txt") 
-	return os.path.exists(path)
-
-def DoesDefCoreExist():
-	path = os.path.join(GetOutputPath(), "DefCore.txt") 
-	return os.path.exists(path)
-
-def CheckIfActionListIsValid(action_entries):
-	action_entry_names = set()
-	for entry in action_entries:
-		if GetActionName(entry) not in action_entry_names:
-			action_entry_names.add(GetActionName(entry))
-		else:
-			return "ERROR", "Can't have two actions with the same name: %s. Use \"override name\" in one of each action." % (GetActionName(entry))
-
-	return "INFO", "All entries are valid."
-
-def ReadIni(filepath):
-	file_content = []
-
-	file = None
-	if os.path.exists(filepath):
-		try:
-			# opening the file in read mode
-			file = open(filepath, "r")
-			lines = file.readlines()
-			current_section_index = -1
-			
-			for line in lines:
-				if line == "\n":
-					continue
-				
-				line = line.strip()
-				
-				if line.startswith("["):
-					section_content = {}
-					section_content["SectionName"] = line
-					current_section_index += 1
-					file_content.append(section_content)
-				
-				elif current_section_index > -1:
-					section_content = file_content[current_section_index]
-					name_and_values = line.split("=", 1)
-					section_content[name_and_values[0].strip()] = name_and_values[1].strip()
-					file_content[current_section_index] = section_content
-
-			path = Path(filepath)
-			print("Finished reading " + path.name)
-		
-		except:
-			print("There is no file at path " + filepath)
-
-		finally:
-			if file:
-				file.close()
-			
-	return file_content
-
-def PrintIni(filepath, file_content):
-	file = None
-	try:
-		file = open(filepath, "w")
-		
-		for section_content in file_content:
-			for entry_key in section_content:
-				entry = section_content[entry_key]
-				if entry_key == "SectionName":
-					file.write(entry + "\n")
-				else:
-					file.write(entry_key + "=" + entry + "\n")
-			
-			file.write("\n")
-
-		path = Path(filepath)
-		print("Finished writing " + path.name)
-
-	except:
-		print("Could not open file at " + filepath)
-
-	finally:
-		if file:
-			file.close()
-		
-
-def PrintActmap(path, remove_unused_sections=False):
-	valid_action_entries = GetValidActionEntries()
-
-	messagetype, message = CheckIfActionListIsValid(valid_action_entries)
-
-	if messagetype == "ERROR":
-		return messagetype, message
-	
-	sheet_width, sheet_height, sprite_strips = GetSpritesheetInfo(valid_action_entries)
-	actmap_path = os.path.join(path, "ActMap.txt")
-	
-	# Get old actmap data
-	file_content = []
-	if os.path.exists(actmap_path):
-		if CanReadFile(actmap_path) == False or CanWriteFile(actmap_path) == False:
-			return "ERROR", "Need read/write permissions at output path. Aborted."
-		file_content = ReadIni(actmap_path)
-	else:
-		print("No old Actmap.txt found. Creating new..")
-
-	# What section in the file is listed explicitly in the addon?
-	remaining_action_entries = valid_action_entries.copy()
-	remaining_file_content = file_content.copy()
-	section_descriptions = []
-	for action_entry in valid_action_entries:
-		for content_section in file_content:
-			if content_section["Name"] == GetActionName(action_entry):
-				section_descriptions.append({"Action" : action_entry, "FullCopy" : True, "Section" : content_section})
-				remaining_action_entries.remove(action_entry)
-				remaining_file_content.remove(content_section)
-				break
-	
-	# What file section is related to what action but not explicitly listed in the addon?
-	omitted_sections = remaining_file_content.copy()
-	copied_descriptions = section_descriptions.copy()
-	for section_index, section_description in enumerate(section_descriptions):
-		for content_section in remaining_file_content:	
-			if content_section["Facet"] == section_description["Section"]["Facet"]:
-				new_description = {"Action" : section_description["Action"], "FullCopy" : False, "Section" : content_section}
-				# Put it always after the related description
-				insertion_index = copied_descriptions.index(section_description)
-				copied_descriptions.insert(insertion_index+1, new_description) # Insert checks array bounds for us.
-				omitted_sections.remove(content_section)
-					
-	section_descriptions = copied_descriptions
-
-	
-	# What remaining actions are not listed in the file? -> Create new sections
-	for action_entry in remaining_action_entries:
-		# But omit pictures .. 
-		if action_entry.render_type_enum == "Picture":
-			continue
-
-		content_section = {}
-		content_section["SectionName"] = "[Action]"
-		section_descriptions.append({"Action" : action_entry, "FullCopy" : True, "Section" : content_section})
-
-
-	# Update content
-	output_content = []
-	for section_description in section_descriptions:
-		content_section = section_description["Section"]
-		reference_action = section_description["Action"]
-		
-		sprite_strip = sprite_strips[GetActionName(reference_action)]
-
-		if section_description["FullCopy"]:
-			content_section["Name"] = GetActionName(reference_action)
-			content_section["Length"] =  str(sprite_strip["Length"])
-
-		x_pos = str(sprite_strip["X_pos"])
-		y_pos = str(sprite_strip["Y_pos"])
-		sprite_width = str(sprite_strip["Sprite_Width"])
-		sprite_height = str(sprite_strip["Sprite_Height"])
-		content_section["Facet"] = x_pos + "," + y_pos + "," + sprite_width + "," + sprite_height
-
-		output_content.append(content_section)
-
-
-	if remove_unused_sections == False:
-		output_content = output_content + omitted_sections
-
-	unmatched_actions = ""
-	for section in omitted_sections:
-		unmatched_actions += section["Name"] + ", "
-
-	# Save content
-	PrintIni(actmap_path, output_content)
-	if len(unmatched_actions) > 0:
-		return "WARNING", "Exported ActMap.txt but some actions couldn't be matched: %s. You can create entries for it in the action list and export the ActMap again." % [unmatched_actions]
-	else:
-		return "INFO", "Exported ActMap.txt"
-
-
-def PrintDefCore(path):
-	valid_action_entries = GetValidActionEntries()
-	sheet_width, sheet_height, sprite_strips = GetSpritesheetInfo(valid_action_entries)
-
-	defcore_path = os.path.join(path, "DefCore.txt")
-	
-	# Get old defcore data
-	file_content = []
-	if os.path.exists(defcore_path):
-		if CanReadFile(defcore_path) == False or CanWriteFile(defcore_path) == False:
-			return "ERROR", "Need read/write permissions at output path. Aborted."
-		file_content = ReadIni(defcore_path)
-	else:
-		print("No old DefCore.txt found. Creating new..")
-
-	
-
-	# Prepare output content
-	output_content = []
-	if len(file_content) == 0:
-		content_section = {"SectionName" : "[DefCore]"}
-		output_content.append(content_section)
-	else:
-		for content_section in file_content:
-			output_content.append(content_section)
-
-	# Update content
-	content_section = output_content[0] # DefCore section
-	content_section["Width"] = str(bpy.context.scene.render.resolution_x)
-	content_section["Height"] = str(bpy.context.scene.render.resolution_y)
-	x_offset = -math.floor(bpy.context.scene.render.resolution_x / 2.0)
-	y_offset = -math.floor(bpy.context.scene.render.resolution_y / 2.0)
-	content_section["Offset"] = str(x_offset) + "," + str(y_offset)
-
-	picture = {
-		"x" : str(0), 
-		"y" : str(0), 
-		"w" : str(math.floor(bpy.context.scene.render.resolution_x*get_res_multiplier())), 
-		"h" : str(math.floor(bpy.context.scene.render.resolution_y*get_res_multiplier()))}
-	for action_entry in valid_action_entries:
-		if action_entry.render_type_enum == "Picture":
-			strip = sprite_strips[GetActionName(action_entry)]
-			picture["x"] = str(math.floor(strip["X_pos"]*get_res_multiplier()))
-			picture["y"] = str(math.floor(strip["Y_pos"]*get_res_multiplier()))
-			picture["w"] = str(math.floor(strip["Sprite_Width"]*get_res_multiplier()))
-			picture["h"] = str(math.floor(strip["Sprite_Height"]*get_res_multiplier()))
-			break
-
-	content_section["Picture"] = picture["x"] + "," + picture["y"] + "," + picture["w"] + "," + picture["h"]
-
-	if content_section.get("Scale"):
-		content_section.pop("Scale")
-	if bpy.context.scene.render.resolution_percentage != 100:
-		content_section["Scale"] = str(bpy.context.scene.render.resolution_percentage)
-
-	# Save content
-	PrintIni(defcore_path, output_content)
-	return "INFO", "Exported DefCore.txt"
-
-
 current_action_name = ""
 current_sheet_number = 1
 current_max_sheets = 1
@@ -622,9 +348,9 @@ class TIMER_OT(bpy.types.Operator):
 		wm.modal_handler_add(self)
 
 		# Prepare Data
-		self.action_entries = GetValidActionEntries()
+		self.action_entries = MetaData.GetValidActionEntries()
 
-		messagetype, message = CheckIfActionListIsValid(self.action_entries)
+		messagetype, message = MetaData.CheckIfActionListIsValid(self.action_entries)
 
 		if messagetype == "ERROR" or messagetype == "WARNING":
 			self.cancel(context)
@@ -640,10 +366,8 @@ class TIMER_OT(bpy.types.Operator):
 
 		self.replacement_materials = GetMaterialsToReplace()
 
-
-
 		# Prepare Path
-		self.output_directorypath = GetOutputPath()
+		self.output_directorypath = PathUtilities.GetOutputPath()
 		if context.scene.custom_output_dir != "":
 			self.output_directorypath = bpy.path.abspath(context.scene.custom_output_dir)
 			if not os.path.exists(self.output_directorypath):
@@ -657,7 +381,7 @@ class TIMER_OT(bpy.types.Operator):
 		image_output_path = os.path.join(self.output_directorypath, self.output_image_name + ".png")
 		print("Output" + image_output_path)
 		if os.path.exists(image_output_path):
-			if CanReadFile(image_output_path) == False or CanWriteFile(image_output_path) == False:
+			if PathUtilities.CanReadFile(image_output_path) == False or PathUtilities.CanWriteFile(image_output_path) == False:
 				self.cancel(context)
 				self.cancel_message_type = "ERROR"
 				self.cancel_message = "Need read/write permissions at output path. Aborted."
@@ -722,7 +446,7 @@ class TIMER_OT(bpy.types.Operator):
 				self.render_state = 1
 				self.current_frame_number = 0
 				global current_action_name
-				current_action_name = GetActionName(current_action)
+				current_action_name = MetaData.GetActionName(current_action)
 
 
 			# Render one sprite of sprite strip
@@ -731,7 +455,7 @@ class TIMER_OT(bpy.types.Operator):
 				
 				if current_action.render_type_enum != "Picture":
 					bpy.context.scene.frame_current = self.current_frame_number + current_action.start_frame
-				output_filepath = os.path.join(GetOutputPath(), "sprites", GetActionName(current_action) + "_" + str(bpy.context.scene.frame_current))
+				output_filepath = os.path.join(PathUtilities.GetOutputPath(), "sprites", MetaData.GetActionName(current_action) + "_" + str(bpy.context.scene.frame_current))
 				
 				x_dim, y_dim = get_current_render_dimensions(current_action)
 				bpy.context.scene.render.resolution_x = x_dim
@@ -765,7 +489,7 @@ class TIMER_OT(bpy.types.Operator):
 			# Paste sprite strip onto sheet
 			if self.render_state == 2:
 				current_action : MetaData.ActionMetaData = self.action_entries[self.current_action_index]
-				sprite_strip = self.sprite_strips[GetActionName(current_action)]
+				sprite_strip = self.sprite_strips[MetaData.GetActionName(current_action)]
 
 				x_pos = math.floor(sprite_strip["X_pos"] * get_res_multiplier())
 				y_pos = math.floor(sprite_strip["Y_pos"] * get_res_multiplier())

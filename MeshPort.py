@@ -12,7 +12,6 @@ import os.path
 import glob
 import os
 from bpy import *
-import sys
 from enum import Enum
 from pathlib import Path
 

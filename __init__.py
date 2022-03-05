@@ -39,59 +39,30 @@ from bpy_extras.io_utils import ImportHelper
 from pathlib import Path
 
 import os.path # For checking a path
-import glob # for wildcard directory search
 import os
 
 
 from . import MeshPort
 from . import AnimPort
 from . import SpritesheetMaker
-from . import LoadUtilities
+from . import ClonkPort
 from . import MetaData
+from . import IniPort
+from . import PathUtilities
 import importlib
 importlib.reload(MeshPort)
 importlib.reload(AnimPort)
 importlib.reload(SpritesheetMaker)
-importlib.reload(LoadUtilities)
+importlib.reload(ClonkPort)
+importlib.reload(PathUtilities)
 importlib.reload(MetaData)
+importlib.reload(IniPort)
 
 
 print ("Render Clonk 2.0")
 
 
 AddonDirectory = ""
-found_meshes = []
-found_actions = []
-found_actionlists = []
-
-def content_glob_search(path):
-	global found_meshes
-	global found_actions
-	global found_actionlists
-
-	found_meshes += glob.glob(os.path.join(path, "*.mesh"), recursive=False)
-	found_actions += glob.glob(os.path.join(path, "*.anim"), recursive=False)
-	found_actionlists += glob.glob(os.path.join(path, "*.act"), recursive=False)
-
-def collect_clonk_content_files(path):
-	global found_meshes
-	global found_actions
-	global found_actionlists
-	found_meshes.clear()
-	found_actions.clear()
-	found_actionlists.clear()
-	path = str(path)
-	# Note: This does not use recursion, because it might use an inordinate amount of time on large directories.
-	content_glob_search(path)
-	searching_path = os.path.join(path , "**")
-	content_glob_search(searching_path)
-
-	print("Looking for Data.." + path)
-
-def on_clonk_dir_changed(self, context):
-	path = bpy.context.scene.clonk_content_dir
-	collect_clonk_content_files(path)
-
 
 class MAIN_PT_SettingsPanel(bpy.types.Panel):
 	bl_label = "Render Clonk Utilities"
@@ -115,10 +86,13 @@ class MAIN_PT_SettingsPanel(bpy.types.Panel):
 
 		actlist_layout = layout.column(align=True)
 		actlist_layout.operator(Menu_Button.bl_idname, text="Import Action List (.act)", icon="IMPORT").menu_active = 6
-		actlist_layout.label(text="This will import actions and tool meshes as well.", icon="INFO")
+		#actlist_layout.operator(Menu_Button.bl_idname, text="Import ActMap.txt", icon="IMPORT").menu_active = 12
+
+		actlist_layout.label(text="Action List and ActMap will import actions (.anim) and tool meshes (.mesh) as well.", icon="INFO")
+
 		layout.separator()
 
-		layout.operator(Menu_Button.bl_idname, text="Import Clonk (.mesh)", icon="IMPORT").menu_active = 1
+		layout.operator(Menu_Button.bl_idname, text="Import Clonk / Tool (.mesh)", icon="IMPORT").menu_active = 1
 		layout.operator(Menu_Button.bl_idname, text="Import Action (.anim)", icon="ARMATURE_DATA").menu_active = 2
 
 		layout.separator()
@@ -147,15 +121,15 @@ class Menu_Button(bpy.types.Operator):
 			bpy.ops.anim.open_filebrowser("INVOKE_DEFAULT", filepath=context.scene.lastfilepath)
 
 		if self.menu_active == 3:
-			LoadUtilities.SetOptimalRenderingSettings()
+			ClonkPort.SetOptimalRenderingSettings()
 		
 		if self.menu_active == 4:
-			LoadUtilities.AppendRenderClonkSetup(AddonDirectory)
+			ClonkPort.AppendRenderClonkSetup(AddonDirectory)
 
 		if self.menu_active == 5:
 			bpy.ops.screen.animation_cancel()
 			
-			Overlay, Holdout, Fill = LoadUtilities.GetOrAppendOverlayMaterials()
+			Overlay, Holdout, Fill = ClonkPort.GetOrAppendOverlayMaterials()
 			if bpy.context.scene.spritesheet_settings.overlay_material == None:
 				bpy.context.scene.spritesheet_settings.overlay_material = Overlay
 			if bpy.context.scene.spritesheet_settings.fill_material == None:
@@ -173,7 +147,7 @@ class Menu_Button(bpy.types.Operator):
 
 		#Append Clonk Rig
 		if self.menu_active == 7:
-			LoadUtilities.GetOrAppendClonkRig(False)
+			ClonkPort.GetOrAppendClonkRig(False)
 
 		# Preview Action
 		if self.menu_active == 8:
@@ -184,20 +158,21 @@ class Menu_Button(bpy.types.Operator):
 
 		if self.menu_active == 10:
 			# Prepare Path
-			output_directorypath = SpritesheetMaker.GetOutputPath()
+			output_directorypath = PathUtilities.GetOutputPath()
+			print(output_directorypath)
 			if context.scene.custom_output_dir != "":
 				output_directorypath = bpy.path.abspath(context.scene.custom_output_dir)
 				if not os.path.exists(output_directorypath):
 					self.report({"ERROR"}, f"Custom Directory not found.")
 					return {'FINISHED'}
 
-			info_type, info_text = SpritesheetMaker.PrintActmap(output_directorypath)
+			info_type, info_text = ClonkPort.PrintActmap(output_directorypath)
 			self.report({info_type}, info_text)
 
 
 		if self.menu_active == 11:
 			# Prepare Path
-			output_directorypath = SpritesheetMaker.GetOutputPath()
+			output_directorypath = PathUtilities.GetOutputPath()
 			if context.scene.custom_output_dir != "":
 				output_directorypath = bpy.path.abspath(context.scene.custom_output_dir)
 				if not os.path.exists(output_directorypath):
@@ -205,8 +180,12 @@ class Menu_Button(bpy.types.Operator):
 					self.report({"ERROR"}, f"Custom Directory not found.")
 					return {'FINISHED'}
 
-			info_type, info_text = SpritesheetMaker.PrintDefCore(output_directorypath)
+			info_type, info_text = ClonkPort.PrintDefCore(output_directorypath)
 			self.report({info_type}, info_text)
+
+		# ActMap.txt	
+		if self.menu_active == 12:
+			bpy.ops.actmap.open_filebrowser("INVOKE_DEFAULT", filepath=context.scene.lastfilepath)
 			
 
 		return {"FINISHED"}
@@ -302,6 +281,9 @@ class ACTION_PT_LayoutPanel(bpy.types.Panel):
 		preview_button_layout = layout.column()
 		preview_button_layout.alignment = "LEFT"
 		
+		if len(scene.animlist) == 0:
+			return
+
 		anim_entry = scene.animlist[scene.action_meta_data_index]
 		preview_button_layout.enabled = (scene.anim_target != None and anim_entry.action != None)
 		if SpritesheetMaker.preview_active:
@@ -431,9 +413,9 @@ class SPRITESHEET_PT_Panel(bpy.types.Panel):
 		col.label(text="Output Resolution Per Sprite   x: " + str(x_resolution) + " px   y: " + str(y_resolution) + " px")
 		
 		if bpy.context.scene.custom_output_dir != "":
-			layout.label(text="Individual sprites will be saved at: " + SpritesheetMaker.GetOutputPath(), icon="INFO")
+			layout.label(text="Individual sprites will be saved at: " + PathUtilities.GetOutputPath(), icon="INFO")
 		else:
-			layout.label(text="Output path: " + SpritesheetMaker.GetOutputPath())
+			layout.label(text="Output path: " + PathUtilities.GetOutputPath())
 		
 		custom_output_layout = layout.column(align=True)
 		custom_output_layout.label(text="Custom output directory:")
@@ -441,12 +423,12 @@ class SPRITESHEET_PT_Panel(bpy.types.Panel):
 
 		layout.separator()
 		
-		if SpritesheetMaker.DoesActmapExist():
+		if ClonkPort.DoesActmapExist():
 			layout.operator(Menu_Button.bl_idname, text="Update ActMap.txt", icon="FILE_TEXT").menu_active = 10
 		else:
 			layout.operator(Menu_Button.bl_idname, text="Save ActMap.txt", icon="FILE_TEXT").menu_active = 10
 
-		if SpritesheetMaker.DoesDefCoreExist():
+		if ClonkPort.DoesDefCoreExist():
 			layout.operator(Menu_Button.bl_idname, text="Update DefCore.txt", icon="FILE_TEXT").menu_active = 11
 		else:
 			layout.operator(Menu_Button.bl_idname, text="Save DefCore.txt", icon="FILE_TEXT").menu_active = 11
@@ -490,39 +472,7 @@ class ABOUT_PT_LayoutPanel(bpy.types.Panel):
 		col3.label(text="   Robin Hohnsbeen (Ryou)")
 
 
-class OT_ActListFilebrowser(bpy.types.Operator, ImportHelper):
-	bl_idname = "act.open_filebrowser"
-	bl_label = "Import Actionlist (.act)"
-
-	filter_glob: StringProperty(default="*.act", options={"HIDDEN"})
-
-	def execute(self, context):
-		parent_path = Path(self.filepath).parents[1]
-		collect_clonk_content_files(parent_path)
-		print(self.filepath)
-
-		extension = Path(self.filepath).suffix
-		if extension == ".act":
-			global found_actions
-			clonk_rig = LoadUtilities.GetOrAppendClonkRig()
-			bpy.context.scene.anim_target = clonk_rig
-			if bpy.data.collections.find("ClonkRig") == -1:
-				raise AssertionError("No Collection named ClonkRig found.")
-			bpy.context.scene.always_rendered_objects = bpy.data.collections["ClonkRig"]
-			reporttype, message = LoadUtilities.ImportActList(self.filepath, found_actions, found_meshes, bpy.context.scene.anim_target)
-
-
-			self.report({reporttype}, "%s" % [message])
-
-		else:
-			print(self.filepath + " is no Actionlist!")
-
-		context.scene.lastfilepath = self.filepath
-		return {"FINISHED"}
-
-
 preview_collections = {}
-
 
 class ACTION_UL_actionslots(bpy.types.UIList):
 	
@@ -560,9 +510,10 @@ class ACTION_UL_actionslots(bpy.types.UIList):
 
 registered_classes = [
 	Menu_Button, 
-	LoadUtilities.OT_MeshFilebrowser, 
-	LoadUtilities.OT_AnimFilebrowser,
-	OT_ActListFilebrowser, 
+	ClonkPort.OT_MeshFilebrowser, 
+	ClonkPort.OT_AnimFilebrowser,
+	ClonkPort.OT_ActListFilebrowser,
+	ClonkPort.OT_ActMapFilebrowser, 
 	ACTION_UL_actionslots, 
 	Action_List_Button,
 	SpritesheetMaker.TIMER_OT,
@@ -611,7 +562,6 @@ def register():
 		bpy.types.Scene.animlist = bpy.props.CollectionProperty(type=MetaData.ActionMetaData)
 		bpy.types.Scene.spritesheet_settings = bpy.props.PointerProperty(type=MetaData.SpriteSheetMetaData)
 		bpy.types.Scene.lastfilepath = bpy.props.StringProperty()
-		bpy.types.Scene.clonk_content_dir = bpy.props.StringProperty(name="Clonk Content", subtype="DIR_PATH", update=on_clonk_dir_changed)
 		bpy.types.Scene.has_applied_rendersettings = bpy.props.BoolProperty(name="has_applied_rendersettings", default=False)
 		bpy.types.Scene.custom_output_dir = bpy.props.StringProperty(name="Custom Output Directory", subtype="DIR_PATH")
 		
@@ -631,10 +581,8 @@ def unregister():
 	del bpy.types.Scene.animlist
 	del bpy.types.Scene.always_rendered_objects
 	del bpy.types.Scene.lastfilepath
-	del bpy.types.Scene.clonk_content_dir
 	del bpy.types.Scene.spritesheet_settings
 
-		
 
 if __name__ == "__main__":
 		register()
