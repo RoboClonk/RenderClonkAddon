@@ -86,8 +86,8 @@ class MAIN_PT_SettingsPanel(bpy.types.Panel):
 
 		actlist_layout = layout.column(align=True)
 		actlist_layout.operator(Menu_Button.bl_idname, text="Import Action List (.act)", icon="IMPORT").menu_active = 6
-		#TODO:
-		#actlist_layout.operator(Menu_Button.bl_idname, text="Import ActMap.txt", icon="IMPORT").menu_active = 12
+		
+		actlist_layout.operator(Menu_Button.bl_idname, text="Import ActMap.txt", icon="IMPORT").menu_active = 12
 		
 
 		layout.separator()
@@ -139,7 +139,7 @@ class Menu_Button(bpy.types.Operator):
 				# Render overlay
 				bpy.ops.timer.progress(output_image_name="Graphics", set_overlay_material=True, replace_overlay_material=False)
 			else:
-				bpy.ops.timer.progress(output_image_name="Combined")
+				bpy.ops.timer.progress(output_image_name="Graphics")
 
 		# Import ActList
 		if self.menu_active == 6:

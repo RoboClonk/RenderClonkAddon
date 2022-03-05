@@ -106,6 +106,11 @@ def ImportActList(path, animfiles, meshfiles, target, create_entry, import_tools
 
 	print("Looking in " + str(len(animfiles)) + " animfiles")
 
+	animfilemap = {}
+	for animfilepath in animfiles:
+		animpath = Path(animfilepath)
+		animfilemap[animpath.stem] = animfilepath
+
 	animations_not_found = []
 	for line in lines:
 		line = line.replace("\n", "")
@@ -116,23 +121,16 @@ def ImportActList(path, animfiles, meshfiles, target, create_entry, import_tools
 		if is_reading_actions == False:
 			continue
 
-		found_animation = False
-		for animfilepath in animfiles:
-			animpath = Path(animfilepath)
+		if animfilemap.get(line) != None:
+			anim_data = AnimPort.LoadAction(animfilemap[line], target)
 
-			if animpath.stem == line:
-				anim_data = AnimPort.LoadAction(animfilepath, target)
+			new_entry = None
+			if create_entry:
+				new_entry = MetaData.MakeActionEntry(anim_data)
+			if import_tools:
+				_ImportToolsIfAny(new_entry, anim_data, meshfiles)
 
-				new_entry = None
-				if create_entry:
-					new_entry = MetaData.MakeActionEntry(anim_data)
-				if import_tools:
-					_ImportToolsIfAny(new_entry, anim_data, meshfiles)
-				
-				found_animation = True
-				break
-
-		if found_animation == False:
+		else:
 			animations_not_found.append(line)
 
 	file.close()
@@ -141,46 +139,47 @@ def ImportActList(path, animfiles, meshfiles, target, create_entry, import_tools
 		missing_actions = ""
 		for animation in animations_not_found:
 			missing_actions += animation + ", "
-		return "WARNING", "Could not find actions: %s" % [missing_actions]
+		return "WARNING", "Could not find actions: %s" % (missing_actions)
 	else:
 		return "INFO", "Imported all actions from act file."
 
 # ActMap.txt
-def ImportActMap(path, animfiles, meshfiles, target):
+def ImportActMap(path, animfiles, meshfiles, target, create_entry, import_tools):
 	print("Read actmap " + path)
 	file = open(path, "r")
 	actmap = IniPort.Read(path)
 	
 	print("Looking in " + str(len(animfiles)) + " animfiles")
 
-	# TODO: Filter animations
-	actions = []
+	animfilemap = {}
+	for animfilepath in animfiles:
+		animpath = Path(animfilepath)
+		animfilemap[animpath.stem] = animfilepath
 
 	animations_not_found = []
-	for action in actions:
-		found_animation = False
-		for animfilepath in animfiles:
-			animpath = Path(animfilepath)
+	for section in actmap:
+		action = section["Name"]
 
-			if animpath.stem == action:
-				anim_data = AnimPort.LoadAction(animfilepath, target)
+		if animfilemap.get(action) != None:
+			anim_data = AnimPort.LoadAction(animfilemap[action], target)
 
+			new_entry = None
+			if create_entry:
 				new_entry = MetaData.MakeActionEntry(anim_data)
+			if import_tools:
 				_ImportToolsIfAny(new_entry, anim_data, meshfiles)
-				
-				found_animation = True
-				break
 
-		if found_animation == False:
+		else:
 			animations_not_found.append(action)
 
 	file.close()
-
-	if len(animations_not_found) > 0:
+	if len(actmap) == len(animations_not_found):
+		return "WARNING", "No actions could be found."
+	elif len(animations_not_found) > 0:
 		missing_actions = ""
 		for animation in animations_not_found:
 			missing_actions += animation + ", "
-		return "WARNING", "Could not find actions: %s" % [missing_actions]
+		return "INFO", "Imported %d actions, omitted: %s" % (len(actmap) - len(animations_not_found), missing_actions)
 	else:
 		return "INFO", "Imported all actions from ActMap."
 
@@ -347,7 +346,7 @@ class OT_ActListFilebrowser(bpy.types.Operator, ImportHelper):
 			reporttype, message = ImportActList(self.filepath, found_actions, found_meshes, bpy.context.scene.anim_target, self.create_action_entry, self.import_tool_mesh)
 
 
-			self.report({reporttype}, "%s" % [message])
+			self.report({reporttype}, "%s" % (message))
 
 		else:
 			print(self.filepath + " is no Actionlist!")
@@ -359,9 +358,11 @@ class OT_ActMapFilebrowser(bpy.types.Operator, ImportHelper):
 	bl_idname = "actmap.open_filebrowser"
 	bl_label = "Import ActMap.txt"
 
-	filter_glob: StringProperty(default="ActMap.txt", options={"HIDDEN"})
+	filter_glob: StringProperty(default="*.txt", options={"HIDDEN"})
 	
 	force_import_action: BoolProperty(name="Force action import", default=False, description="Import action although there is an action with the same name in blender")
+	create_action_entry: BoolProperty(name="Create Action Entries", default=True, description="Create entries in the actions list")
+	import_tool_mesh: BoolProperty(name="Import Tool Meshes", default=True, description="Import tool meshes if the actions reference any")
 
 	def execute(self, context):
 		parent_path = Path(self.filepath).parents[1]
@@ -381,9 +382,9 @@ class OT_ActMapFilebrowser(bpy.types.Operator, ImportHelper):
 				self.report({"ERROR"}, "Your ActMap.txt needs to be in the same folder (or neighboring folders) as your .anim files.")
 				return {"CANCELLED"}
 
-			reporttype, message = ImportActList(self.filepath, found_actions, found_meshes, bpy.context.scene.anim_target)
+			reporttype, message = ImportActMap(self.filepath, found_actions, found_meshes, bpy.context.scene.anim_target, self.create_action_entry, self.import_tool_mesh)
 
-			self.report({reporttype}, "%s" % [message])
+			self.report({reporttype}, "%s" % (message))
 
 		else:
 			print(self.filepath + " is no ActMap!")
