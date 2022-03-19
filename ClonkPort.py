@@ -464,19 +464,28 @@ def PrintActmap(path, remove_unused_sections=False):
 	output_content = []
 	for section_description in section_descriptions:
 		content_section = section_description["Section"]
-		reference_action = section_description["Action"]
+		reference_action_entry : MetaData.ActionMetaData = section_description["Action"]
 		
-		sprite_strip = sprite_strips[MetaData.GetActionName(reference_action)]
+		sprite_strip = sprite_strips[MetaData.GetActionName(reference_action_entry)]
 
 		if section_description["FullCopy"]:
-			content_section["Name"] = MetaData.GetActionName(reference_action)
+			content_section["Name"] = MetaData.GetActionName(reference_action_entry)
 			content_section["Length"] =  str(sprite_strip["Length"])
 
 		x_pos = str(sprite_strip["X_pos"])
 		y_pos = str(sprite_strip["Y_pos"])
 		sprite_width = str(sprite_strip["Sprite_Width"])
 		sprite_height = str(sprite_strip["Sprite_Height"])
-		content_section["Facet"] = x_pos + "," + y_pos + "," + sprite_width + "," + sprite_height
+
+		Facet = x_pos + "," + y_pos + "," + sprite_width + "," + sprite_height
+
+		if reference_action_entry.invert_region_cropping == False and MetaData.is_using_cutout(reference_action_entry):
+			min_max_pixels, pixel_dimensions = MetaData.GetPixelFromCutout(reference_action_entry)
+			# Add cropping offset to facet
+			y_offset = SpritesheetMaker.get_sprite_height(reference_action_entry, include_cropping=False) - min_max_pixels[3]
+			Facet += "," +  str(min_max_pixels[0]) + "," + str(y_offset)
+
+		content_section["Facet"] = Facet
 
 		output_content.append(content_section)
 
@@ -561,7 +570,6 @@ def SetOptimalRenderingSettings():
 	bpy.context.scene.render.engine = "CYCLES"
 	bpy.context.scene.cycles.device = "GPU"
 	bpy.context.scene.render.film_transparent = True
-	#bpy.context.scene.cycles.pixel_filter_type = "BOX"
 	bpy.context.scene.cycles.pixel_filter_type = "GAUSSIAN"
 	bpy.context.scene.cycles.filter_width = 1.5
 	bpy.context.scene.display_settings.display_device = "sRGB"

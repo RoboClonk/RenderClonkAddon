@@ -422,10 +422,11 @@ class ACTIONSETTINGS_PT_SubPanel(bpy.types.Panel):
 			replace_material_row.prop(anim_entry, "replace_material", text="")
 			
 			region_cropping_layout_col = layout.column(align=True)
-			min_max_pixels, pixel_dimensions = MetaData.GetPixelFromCutout(anim_entry)
 			if MetaData.is_using_cutout(anim_entry):
+				min_max_pixels, pixel_dimensions = MetaData.GetPixelFromCutout(anim_entry)
 				region_cropping_layout_col.label(text="Region cropping active", icon="CON_SIZELIMIT")
-				region_cropping_info = "x: %d px  y: %d px  w: %d px  h: %d px" % (min_max_pixels[0], min_max_pixels[1], pixel_dimensions[0], pixel_dimensions[1])
+				sprite_height = SpritesheetMaker.get_sprite_height(anim_entry, include_cropping=False)
+				region_cropping_info = "x: %d px  y: %d px  w: %d px  h: %d px" % (min_max_pixels[0], sprite_height - min_max_pixels[3], pixel_dimensions[0], pixel_dimensions[1])
 				region_cropping_layout_col.label(text=region_cropping_info)
 			else:
 				region_cropping_layout_col.label(text="Region cropping inactive", icon="MATPLANE")
@@ -439,7 +440,10 @@ class ACTIONSETTINGS_PT_SubPanel(bpy.types.Panel):
 			region_cropping_layout_row.operator("action.settings_op", text="Copy", icon="COPYDOWN").menu_active = 2
 			region_cropping_layout_row.operator("action.settings_op", text="Remove", icon="X").menu_active = 3
 			region_cropping_layout_col.prop(anim_entry, "invert_region_cropping")
-	
+
+			layout.prop(anim_entry, "use_normal_action_placement")
+
+
 		layout.separator(factor=2.0)
 
 class SPRITESHEET_PT_Panel(bpy.types.Panel):
@@ -481,11 +485,11 @@ class SPRITESHEET_PT_Panel(bpy.types.Panel):
 			col.prop(scene.render, "resolution_y")
 
 			if scene.scene_render_resolution != str(scene.render.resolution_percentage)+"%":
-				col.label(text="Custom resolution percentage used: %d%s" % (scene.render.resolution_percentage, "%"))
+				col.label(text="Custom resolution percentage used: %d%s" % (scene.render.resolution_percentage, "%"), icon="ERROR")
 				col.label(text="It is recommended to use the dropdown")
 			
 			res_percentage_layout = col.row(align=True)
-			res_percentage_layout.label(text="Resolution Percentage")
+			res_percentage_layout.label(text="Resolution Percentage:")
 			res_percentage_layout.prop(scene, "scene_render_resolution")
 		
 		layout.separator()

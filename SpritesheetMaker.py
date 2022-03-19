@@ -19,26 +19,26 @@ from . import PathUtilities
 def get_res_multiplier():
 	return bpy.context.scene.render.resolution_percentage / 100.0
 
-def get_sprite_width(action_entry):
+def get_sprite_width(action_entry, include_cropping=True):
 	x_res_sprite = bpy.context.scene.render.resolution_x
 	
 	if action_entry.override_resolution:
 		x_res_sprite = action_entry.width
 
-	if action_entry.invert_region_cropping == False and MetaData.is_using_cutout(action_entry):
+	if action_entry.invert_region_cropping == False and MetaData.is_using_cutout(action_entry) and include_cropping:
 		min_max_pixels, pixel_dimensions = MetaData.GetPixelFromCutout(action_entry)
 
 		x_res_sprite = pixel_dimensions[0]
 
 	return x_res_sprite
 
-def get_sprite_height(action_entry):
+def get_sprite_height(action_entry, include_cropping=True):
 	y_res_sprite = bpy.context.scene.render.resolution_y
 	
 	if action_entry.override_resolution:
 		y_res_sprite = action_entry.height
 
-	if action_entry.invert_region_cropping == False and MetaData.is_using_cutout(action_entry):
+	if action_entry.invert_region_cropping == False and MetaData.is_using_cutout(action_entry) and include_cropping:
 		min_max_pixels, pixel_dimensions = MetaData.GetPixelFromCutout(action_entry)
 		
 		y_res_sprite = pixel_dimensions[1]
@@ -104,19 +104,20 @@ def GetSpritesheetInfo(action_entries):
 	action_index = 0
 	rows = []
 	row_height = 0
-	pictures = []
+	special_placement_actions = []
 	for action_entry in action_entries:
-		if action_entry.render_type_enum == "Picture": # Will be placed later
-			pictures.append(action_entry)
+		if action_entry.use_normal_action_placement == False: # Will be placed later
+			special_placement_actions.append(action_entry)
 			continue
 
 		sheetstrip_height = get_sheet_strip_height(action_entry, get_scaled=False)
 		sheetstrip_width = get_sheet_strip_width(action_entry, get_scaled=False)
 		
-		if current_x_position > sheet_width - sheetstrip_width or last_height < sheetstrip_height and last_height != 0:
+		if current_x_position > sheet_width - sheetstrip_width and last_height != 0:
+			# Go to new row
 			rows.append({"x_remaining" : sheet_width - current_x_position, "row_height" : row_height})
 			current_x_position = 0
-			current_y_position += last_height
+			current_y_position += row_height
 			row_height = 0
 		
 		sheet_strips[MetaData.GetActionName(action_entry)] = GetSpriteStripInfo(action_entry, current_x_position, current_y_position)
@@ -132,10 +133,10 @@ def GetSpritesheetInfo(action_entries):
 	sheet_height = current_y_position + last_height
 	rows.append({"x_remaining" : sheet_width - current_x_position, "row_height" : row_height})
 
-	# Place pictures
-	for picture in pictures:
-		sprite_height = get_sprite_height(picture)
-		sprite_width = get_sprite_width(picture)
+	# Try to place these actions at the end of the other action's rows. If no place is found, make a new row.
+	for special_placement_action in special_placement_actions:
+		sprite_height = get_sprite_height(special_placement_action)
+		sprite_width = get_sprite_width(special_placement_action)
 
 		y_begin = 0
 		x_begin = 0
@@ -152,7 +153,7 @@ def GetSpritesheetInfo(action_entries):
 				rows_changed.append(row_number)
 
 				if height_remaining <= 0:
-					sheet_strips[MetaData.GetActionName(picture)] = GetSpriteStripInfo(picture, x_begin, y_begin)
+					sheet_strips[MetaData.GetActionName(special_placement_action)] = GetSpriteStripInfo(special_placement_action, x_begin, y_begin)
 					found_place = True
 					for changed_row_number in rows_changed:
 						rows[changed_row_number]["x_remaining"] = max(sheet_width - x_begin + sprite_width, 0)
@@ -167,14 +168,14 @@ def GetSpritesheetInfo(action_entries):
 		if found_place == False:
 			y_begin = sheet_height
 			x_begin = 0
-			strip_info = GetSpriteStripInfo(picture, x_begin, y_begin)
-			sheet_strips[MetaData.GetActionName(picture)] = strip_info
+			strip_info = GetSpriteStripInfo(special_placement_action, x_begin, y_begin)
+			sheet_strips[MetaData.GetActionName(special_placement_action)] = strip_info
 			
 			sheet_height += strip_info["Height"]
 			rows.append({"x_remaining" : strip_info["Width"], "row_height" : strip_info["Height"]})
 			
 
-	return int(sheet_width * get_res_multiplier()), int(sheet_height * get_res_multiplier()), sheet_strips
+	return math.floor(sheet_width * get_res_multiplier()), math.floor(sheet_height * get_res_multiplier()), sheet_strips
 
 def get_action_visible_objects(action_entry : MetaData.ActionMetaData):
 	visible_objects = []
@@ -462,6 +463,8 @@ class TIMER_OT(bpy.types.Operator):
 			# Prepare for new action strip
 			if self.render_state == 0:
 				current_action = self.action_entries[self.current_action_index]
+				bpy.context.scene.render.resolution_x = self.base_x
+				bpy.context.scene.render.resolution_y = self.base_y
 				prepare_action(current_action)
 				if current_action.find_material_name != "" and current_action.replace_material != None:
 					ReplaceMaterialWithName(self.replacement_materials, current_action.find_material_name, current_action.replace_material)
@@ -494,12 +497,17 @@ class TIMER_OT(bpy.types.Operator):
 				sprite_pixel_data = np.zeros((sprite_height, sprite_width, 4), 'f')
 				# Fast copy of pixel data from bpy.data to numpy array.
 				rendered_sprite_image.pixels.foreach_get(sprite_pixel_data.ravel())
+
+				# Cutout if region is enabled
+				if current_action.invert_region_cropping and MetaData.is_using_cutout(current_action):
+					min_max_pixels, pixel_dimensions = MetaData.GetPixelFromCutout(current_action, scaled=True)
+					sprite_pixel_data[min_max_pixels[2]:min_max_pixels[3], min_max_pixels[0]:min_max_pixels[1], :] = np.zeros((pixel_dimensions[1], pixel_dimensions[0], 4), 'f')
+
 				# Cleanup
 				bpy.data.images.remove(rendered_sprite_image)
 
 				# Paste sprite onto sheet
 				self.strip_image_data[:sprite_height, self.current_frame_number*sprite_width:(self.current_frame_number+1)*sprite_width, :] = sprite_pixel_data[:, :, :]
-
 
 				self.current_frame_number += 1
 				if self.current_frame_number == current_action.max_frames or current_action.render_type_enum == "Picture":

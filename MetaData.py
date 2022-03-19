@@ -49,9 +49,14 @@ class ActionMetaData(bpy.types.PropertyGroup):
 		description="This uses the render region to crop the rendered image to a smaller piece. This is useful for animated doors on buildings for example",
 		size=4)
 	invert_region_cropping : bpy.props.BoolProperty(
-		name='Invert region cropping', 
+		name='Cut out region instead of cropping', 
 		default=False, 
-		description="Instead of cropping the rendered image, the rect itself will be transparent"
+		description="Instead of cropping the rendered image, the region itself will be transparent"
+	)
+	use_normal_action_placement : bpy.props.BoolProperty(
+		name='Use default action placement', 
+		default=True, 
+		description="Determines whether this action is placed on the spritesheet in order of its list index (Default) or placed at the end where it fits (Non default). Uncheck this for title images of objects or Clonks"
 	)
 
 
@@ -80,20 +85,25 @@ def MakeRectCutoutPixelPerfect(action_entry : ActionMetaData):
 
 	return action_entry
 
-def GetPixelFromCutout(action_entry : ActionMetaData):
+def get_res_multiplier():
+	return bpy.context.scene.render.resolution_percentage / 100.0
+
+def GetPixelFromCutout(action_entry : ActionMetaData, scaled=False):
 	scene = bpy.context.scene
 
 	render_width = action_entry.width if action_entry.override_resolution else scene.render.resolution_x
 	render_height = action_entry.height if action_entry.override_resolution else scene.render.resolution_y
 
+	res_multiplier = get_res_multiplier() if scaled else 1.0
+
 	# Rounding the solution should mitigate the risk of losing a pixel
 	pixel_ratio_x = 1.0 / render_width
-	x_pixel_min = round(action_entry.region_cropping[0] / pixel_ratio_x)
-	x_pixel_max = round(action_entry.region_cropping[1] / pixel_ratio_x)
+	x_pixel_min = round(action_entry.region_cropping[0] / pixel_ratio_x * res_multiplier)
+	x_pixel_max = round(action_entry.region_cropping[1] / pixel_ratio_x * res_multiplier)
 
 	pixel_ratio_y = 1.0 / render_height
-	y_pixel_min = round(action_entry.region_cropping[2] / pixel_ratio_y)
-	y_pixel_max = round(action_entry.region_cropping[3] / pixel_ratio_y)
+	y_pixel_min = round(action_entry.region_cropping[2] / pixel_ratio_y * res_multiplier)
+	y_pixel_max = round(action_entry.region_cropping[3] / pixel_ratio_y * res_multiplier)
 
 	width = x_pixel_max - x_pixel_min
 	height = y_pixel_max - y_pixel_min
