@@ -15,6 +15,7 @@ from . import MetaData
 from . import AnimPort
 from . import PathUtilities
 
+
 def get_res_multiplier():
 	return bpy.context.scene.render.resolution_percentage / 100.0
 
@@ -24,6 +25,11 @@ def get_sprite_width(action_entry):
 	if action_entry.override_resolution:
 		x_res_sprite = action_entry.width
 
+	if action_entry.invert_region_cropping == False and MetaData.is_using_cutout(action_entry):
+		min_max_pixels, pixel_dimensions = MetaData.GetPixelFromCutout(action_entry)
+
+		x_res_sprite = pixel_dimensions[0]
+
 	return x_res_sprite
 
 def get_sprite_height(action_entry):
@@ -31,6 +37,11 @@ def get_sprite_height(action_entry):
 	
 	if action_entry.override_resolution:
 		y_res_sprite = action_entry.height
+
+	if action_entry.invert_region_cropping == False and MetaData.is_using_cutout(action_entry):
+		min_max_pixels, pixel_dimensions = MetaData.GetPixelFromCutout(action_entry)
+		
+		y_res_sprite = pixel_dimensions[1]
 
 	return y_res_sprite
 
@@ -225,7 +236,25 @@ def prepare_action(action_entry : MetaData.ActionMetaData):
 		bpy.context.scene.frame_start = action_entry.start_frame
 		bpy.context.scene.frame_end = action_entry.start_frame + action_entry.max_frames-1
 
+	if bpy.context.scene.anim_target.animation_data == None:
+		bpy.context.scene.anim_target.animation_data_create()
+
 	bpy.context.scene.anim_target.animation_data.action = action_entry.action
+
+	x_dim, y_dim = get_current_render_dimensions(action_entry)
+	bpy.context.scene.render.resolution_x = x_dim
+	bpy.context.scene.render.resolution_y = y_dim
+
+	use_region_cropping = action_entry.invert_region_cropping == False and MetaData.is_using_cutout(action_entry)
+	bpy.context.scene.render.use_border = use_region_cropping
+	bpy.context.scene.render.use_crop_to_border = use_region_cropping
+	if use_region_cropping:
+		# In case the resolution changed after the region was set, we still want to have pixel perfect render regions.
+		MetaData.MakeRectCutoutPixelPerfect(action_entry)
+		MetaData.SetRenderBorder(action_entry)
+	else:
+		MetaData.UnsetRenderBorder()
+	
 
 def get_current_render_dimensions(action_entry):
 	if action_entry.override_resolution:
@@ -352,6 +381,9 @@ class TIMER_OT(bpy.types.Operator):
 
 		messagetype, message = MetaData.CheckIfActionListIsValid(self.action_entries)
 
+		self.base_x = bpy.context.scene.render.resolution_x
+		self.base_y = bpy.context.scene.render.resolution_y
+
 		if messagetype == "ERROR" or messagetype == "WARNING":
 			self.cancel(context)
 			self.cancel_message_type = messagetype
@@ -401,10 +433,6 @@ class TIMER_OT(bpy.types.Operator):
 			if self.replace_overlay_material == True:
 				current_sheet_number = 2
 		
-
-		self.base_x = bpy.context.scene.render.resolution_x
-		self.base_y = bpy.context.scene.render.resolution_y
-
 		self.render_state = 0
 		self.current_action_index = 0
 		self.current_frame_number = 0
@@ -414,7 +442,6 @@ class TIMER_OT(bpy.types.Operator):
 		self.total_frames = 0
 		for entry in self.action_entries:
 			self.total_frames += entry.max_frames
-
 
 		return {'RUNNING_MODAL'}
 
@@ -448,7 +475,6 @@ class TIMER_OT(bpy.types.Operator):
 				global current_action_name
 				current_action_name = MetaData.GetActionName(current_action)
 
-
 			# Render one sprite of sprite strip
 			if self.render_state == 1:
 				current_action = self.action_entries[self.current_action_index]
@@ -457,13 +483,9 @@ class TIMER_OT(bpy.types.Operator):
 					bpy.context.scene.frame_current = self.current_frame_number + current_action.start_frame
 				output_filepath = os.path.join(PathUtilities.GetOutputPath(), "sprites", MetaData.GetActionName(current_action) + "_" + str(bpy.context.scene.frame_current))
 				
-				x_dim, y_dim = get_current_render_dimensions(current_action)
-				bpy.context.scene.render.resolution_x = x_dim
-				bpy.context.scene.render.resolution_y = y_dim
 				bpy.context.scene.render.filepath = output_filepath
 				bpy.ops.render.render(write_still=True)
-				bpy.context.scene.render.resolution_x = self.base_x
-				bpy.context.scene.render.resolution_y = self.base_y
+				
 				rendered_sprite_image = bpy.data.images.load(output_filepath + ".png")
 				
 				# Allocate a numpy array to manipulate pixel data.
@@ -513,6 +535,8 @@ class TIMER_OT(bpy.types.Operator):
 
 			# Output image if last action was rendered.
 			if self.render_state == 3:
+				bpy.context.scene.render.resolution_x = self.base_x
+				bpy.context.scene.render.resolution_y = self.base_y
 				print("Finished rendering Spritesheet.")
 				# Copy of pixel data from numpy array back to the output image.
 				self.output_image.pixels.foreach_set(self.output_image_data.ravel())
@@ -540,6 +564,11 @@ class TIMER_OT(bpy.types.Operator):
 		return {'RUNNING_MODAL'}
 
 	def cancel(self, context):
+		bpy.context.scene.render.resolution_x = self.base_x
+		bpy.context.scene.render.resolution_y = self.base_y
+		bpy.context.scene.render.use_border = False
+		bpy.context.scene.render.use_crop_to_border = False
+
 		if self.current_action_index < len(self.action_entries):
 			current_action : MetaData.ActionMetaData = self.action_entries[self.current_action_index]
 			if current_action.find_material_name != "" and current_action.replace_material != None:
@@ -573,6 +602,9 @@ class PREVIEW_OT(bpy.types.Operator):
 	frameend = 16
 	currentframe = 1
 
+	base_x = 16
+	base_y = 20
+
 	def execute(self, context):
 		context.window_manager.modal_handler_add(self)
 		action_entry = bpy.context.scene.animlist[bpy.context.scene.action_meta_data_index]
@@ -580,6 +612,8 @@ class PREVIEW_OT(bpy.types.Operator):
 		self.framestart = bpy.context.scene.frame_start
 		self.frameend = bpy.context.scene.frame_end
 		self.currentframe = bpy.context.scene.frame_current
+		self.base_x = bpy.context.scene.render.resolution_x
+		self.base_y = bpy.context.scene.render.resolution_y
 
 		prepare_action(action_entry)
 		if action_entry.find_material_name != "" and action_entry.replace_material != None:
@@ -606,6 +640,10 @@ class PREVIEW_OT(bpy.types.Operator):
 			bpy.context.scene.frame_start = self.framestart
 			bpy.context.scene.frame_end = self.frameend
 			bpy.context.scene.frame_current = self.currentframe
+			bpy.context.scene.render.resolution_x = self.base_x
+			bpy.context.scene.render.resolution_y = self.base_y
+			bpy.context.scene.render.use_border = False
+			bpy.context.scene.render.use_crop_to_border = False
 
 			return {'FINISHED'}
 

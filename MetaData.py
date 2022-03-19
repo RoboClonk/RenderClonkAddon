@@ -5,8 +5,7 @@
 # Robin Hohnsbeen (Ryou)
 
 import bpy
-
-from bpy.props import StringProperty, BoolProperty
+import math
 
 class ActionMetaData(bpy.types.PropertyGroup):
 	action : bpy.props.PointerProperty(type=bpy.types.Action, name='Action', description="The reference to the action that will be applied on the action target when rendering a spritesheet")
@@ -44,7 +43,16 @@ class ActionMetaData(bpy.types.PropertyGroup):
 	additional_collection : bpy.props.PointerProperty(type=bpy.types.Collection, name='', description="A collection that holds objects that are only visible in this action. This can be used for tools that a clonk is holding for example")
 	find_material_name : bpy.props.StringProperty(name='Find material name', maxlen=32, description="Materials containing that name will be replaced by the replace material.")
 	replace_material : bpy.props.PointerProperty(type=bpy.types.Material, name='Replace material', description="The material that it will be replaced with.")
-	
+	region_cropping : bpy.props.FloatVectorProperty(
+		name='Region Cropping', 
+		default=[0.0, 1.0, 0.0, 1.0], 
+		description="This uses the render region to crop the rendered image to a smaller piece. This is useful for animated doors on buildings for example",
+		size=4)
+	invert_region_cropping : bpy.props.BoolProperty(
+		name='Invert region cropping', 
+		default=False, 
+		description="Instead of cropping the rendered image, the rect itself will be transparent"
+	)
 
 
 class SpriteSheetMetaData(bpy.types.PropertyGroup):
@@ -56,6 +64,61 @@ class SpriteSheetMetaData(bpy.types.PropertyGroup):
 		)
 	overlay_material : bpy.props.PointerProperty(type=bpy.types.Material, name='Overlay Material', description="Materials with \"Overlay\" in its name will be replaced with this material upon render")
 	fill_material : bpy.props.PointerProperty(type=bpy.types.Material, name='Fill Material', description="Materials with \"Overlay\" in its name will be replaced with this material upon render")
+
+def MakeRectCutoutPixelPerfect(action_entry : ActionMetaData):
+	scene = bpy.context.scene
+
+	render_width = action_entry.width if action_entry.override_resolution else scene.render.resolution_x
+	render_height = action_entry.height if action_entry.override_resolution else scene.render.resolution_y
+
+	pixel_ratio_x = 1.0 / render_width
+	pixel_ratio_y = 1.0 / render_height
+	action_entry.region_cropping[0] = math.floor(action_entry.region_cropping[0] / pixel_ratio_x) * pixel_ratio_x
+	action_entry.region_cropping[1] = math.floor(action_entry.region_cropping[1] / pixel_ratio_x) * pixel_ratio_x
+	action_entry.region_cropping[2] = math.floor(action_entry.region_cropping[2] / pixel_ratio_y) * pixel_ratio_y
+	action_entry.region_cropping[3] = math.floor(action_entry.region_cropping[3] / pixel_ratio_y) * pixel_ratio_y
+
+	return action_entry
+
+def GetPixelFromCutout(action_entry : ActionMetaData):
+	scene = bpy.context.scene
+
+	render_width = action_entry.width if action_entry.override_resolution else scene.render.resolution_x
+	render_height = action_entry.height if action_entry.override_resolution else scene.render.resolution_y
+
+	# Rounding the solution should mitigate the risk of losing a pixel
+	pixel_ratio_x = 1.0 / render_width
+	x_pixel_min = round(action_entry.region_cropping[0] / pixel_ratio_x)
+	x_pixel_max = round(action_entry.region_cropping[1] / pixel_ratio_x)
+
+	pixel_ratio_y = 1.0 / render_height
+	y_pixel_min = round(action_entry.region_cropping[2] / pixel_ratio_y)
+	y_pixel_max = round(action_entry.region_cropping[3] / pixel_ratio_y)
+
+	width = x_pixel_max - x_pixel_min
+	height = y_pixel_max - y_pixel_min
+
+	min_max_pixels = [x_pixel_min, x_pixel_max, y_pixel_min, y_pixel_max]
+	pixel_dimensions = [width, height]
+
+	return min_max_pixels, pixel_dimensions
+
+def SetRenderBorder(action_entry):
+	scene = bpy.context.scene
+	scene.render.border_min_x = action_entry.region_cropping[0]
+	scene.render.border_max_x = action_entry.region_cropping[1]
+	scene.render.border_min_y = action_entry.region_cropping[2]
+	scene.render.border_max_y = action_entry.region_cropping[3]
+
+def UnsetRenderBorder():
+	scene = bpy.context.scene
+	scene.render.border_min_x = 0.0
+	scene.render.border_max_x = 1.0
+	scene.render.border_min_y = 0.0
+	scene.render.border_max_y = 1.0
+
+def is_using_cutout(action_entry):
+	return action_entry.region_cropping[0] != 0.0 or action_entry.region_cropping[1] != 1.0 or action_entry.region_cropping[2] != 0.0 or action_entry.region_cropping[3] != 1.0
 
 
 def GetActionName(action_entry : ActionMetaData):

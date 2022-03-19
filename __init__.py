@@ -296,6 +296,57 @@ class ACTION_PT_LayoutPanel(bpy.types.Panel):
 			preview_button_layout.operator(Menu_Button.bl_idname, text="Preview Action", icon="PLAY").menu_active = 8
 
 
+class ACTIONSADD_OPERATOR_Button(bpy.types.Operator):
+	bl_idname = "actionadd.settings_op"
+	bl_label = "Action Add Operator"
+	bl_description = "This will create a new action and applies it here"
+	bl_options = {"REGISTER", "UNDO"}
+
+	def execute(self, context):
+		new_action = bpy.data.actions.new("NewClonkAction")
+
+		scene = bpy.context.scene
+		scene.animlist[scene.action_meta_data_index].action = new_action
+
+		return {"FINISHED"}
+
+
+class ACTIONSETTINGS_OPERATOR_Button(bpy.types.Operator):
+	bl_idname = "action.settings_op"
+	bl_label = "Action Settings Operator"
+	bl_description = "Use ctrl+b in the camera view to define a render region and manage it here"
+	bl_options = {"REGISTER", "UNDO"}
+
+	menu_active: bpy.props.IntProperty(name="Button Index")
+
+	def execute(self, context):
+		scene = bpy.context.scene
+		anim_entry = scene.animlist[scene.action_meta_data_index]
+		#set rect
+		if self.menu_active == 1:
+			
+			anim_entry.region_cropping = (scene.render.border_min_x, scene.render.border_max_x, scene.render.border_min_y, scene.render.border_max_y)
+			MetaData.MakeRectCutoutPixelPerfect(anim_entry)
+			MetaData.SetRenderBorder(anim_entry)
+
+		#copy rect
+		if self.menu_active == 2:
+			MetaData.SetRenderBorder(anim_entry)
+
+			scene.render.use_border = True
+
+		#remove rect
+		if self.menu_active == 3:
+			anim_entry.region_cropping[0] = 0.0
+			anim_entry.region_cropping[1] = 1.0
+			anim_entry.region_cropping[2] = 0.0
+			anim_entry.region_cropping[3] = 1.0
+			MetaData.SetRenderBorder(anim_entry)
+
+			scene.render.use_border = False
+			
+
+		return {"FINISHED"}
 
 
 class ACTIONSETTINGS_PT_SubPanel(bpy.types.Panel):
@@ -315,10 +366,12 @@ class ACTIONSETTINGS_PT_SubPanel(bpy.types.Panel):
 			action_data_layout.label(text="Click on the + to see settings here.", icon="INFO")
 		
 		else:
-			action_data_layout.prop(scene.animlist[scene.action_meta_data_index], "action")
-
 			anim_entry = scene.animlist[scene.action_meta_data_index]
-
+			blender_action_layout = action_data_layout.row(align=True)
+			#blender_action_layout.alignment = "RIGHT"
+			blender_action_layout.prop(anim_entry, "action")
+			if anim_entry.action == None:
+				blender_action_layout.operator("actionadd.settings_op", text="", icon="ADD")
 
 			picture_layout = layout.column(align=True)
 			render_type_icon = "ARMATURE_DATA"
@@ -368,6 +421,24 @@ class ACTIONSETTINGS_PT_SubPanel(bpy.types.Panel):
 			replace_material_row.label(text="Replace with")
 			replace_material_row.prop(anim_entry, "replace_material", text="")
 			
+			region_cropping_layout_col = layout.column(align=True)
+			min_max_pixels, pixel_dimensions = MetaData.GetPixelFromCutout(anim_entry)
+			if MetaData.is_using_cutout(anim_entry):
+				region_cropping_layout_col.label(text="Region cropping active", icon="CON_SIZELIMIT")
+				region_cropping_info = "x: %d px  y: %d px  w: %d px  h: %d px" % (min_max_pixels[0], min_max_pixels[1], pixel_dimensions[0], pixel_dimensions[1])
+				region_cropping_layout_col.label(text=region_cropping_info)
+			else:
+				region_cropping_layout_col.label(text="Region cropping inactive", icon="MATPLANE")
+				region_cropping_info = " Use ctrl+b in the camera view"
+				region_cropping_layout_col.label(text=region_cropping_info)
+				region_cropping_layout_col.label(text=" Then click on 'Set'")
+
+			
+			region_cropping_layout_row = region_cropping_layout_col.row(align=True)
+			region_cropping_layout_row.operator("action.settings_op", text="Set", icon="PASTEDOWN").menu_active = 1
+			region_cropping_layout_row.operator("action.settings_op", text="Copy", icon="COPYDOWN").menu_active = 2
+			region_cropping_layout_row.operator("action.settings_op", text="Remove", icon="X").menu_active = 3
+			region_cropping_layout_col.prop(anim_entry, "invert_region_cropping")
 	
 		layout.separator(factor=2.0)
 
@@ -408,7 +479,14 @@ class SPRITESHEET_PT_Panel(bpy.types.Panel):
 		else:
 			col.prop(scene.render, "resolution_x")
 			col.prop(scene.render, "resolution_y")
-			col.prop(scene.render, "resolution_percentage")
+
+			if scene.scene_render_resolution != str(scene.render.resolution_percentage)+"%":
+				col.label(text="Custom resolution percentage used: %d%s" % (scene.render.resolution_percentage, "%"))
+				col.label(text="It is recommended to use the dropdown")
+			
+			res_percentage_layout = col.row(align=True)
+			res_percentage_layout.label(text="Resolution Percentage")
+			res_percentage_layout.prop(scene, "scene_render_resolution")
 		
 		layout.separator()
 
@@ -512,6 +590,17 @@ class ACTION_UL_actionslots(bpy.types.UIList):
 				entry_layout.label(text=str(item.width) + "x" + str(item.height), icon="TEXTURE_DATA")
 
 
+def SceneRenderUpdate(self, context):
+	scene = bpy.context.scene
+	resolution = scene.scene_render_resolution
+	
+	if resolution == "100%":
+		scene.render.resolution_percentage = 100
+	if resolution == "200%":
+		scene.render.resolution_percentage = 200
+	if resolution == "300%":
+		scene.render.resolution_percentage = 300
+
 registered_classes = [
 	Menu_Button, 
 	ClonkPort.OT_MeshFilebrowser, 
@@ -528,6 +617,8 @@ registered_classes = [
 	ACTION_PT_LayoutPanel, 
 	ACTIONSETTINGS_PT_SubPanel,
 	SPRITESHEET_PT_Panel,
+	ACTIONSETTINGS_OPERATOR_Button,
+	ACTIONSADD_OPERATOR_Button,
 ]
 
 
@@ -568,6 +659,12 @@ def register():
 		bpy.types.Scene.lastfilepath = bpy.props.StringProperty()
 		bpy.types.Scene.has_applied_rendersettings = bpy.props.BoolProperty(name="has_applied_rendersettings", default=False)
 		bpy.types.Scene.custom_output_dir = bpy.props.StringProperty(name="Custom Output Directory", subtype="DIR_PATH")
+		bpy.types.Scene.scene_render_resolution = bpy.props.EnumProperty(items={
+			("100%", "100%", "Render at 100% Resolution", 1), 
+			("200%", "200%", "Render at 200% Resolution", 2),
+			("300%", "300%", "Render at 300% Resolution", 3)},
+		default="100%", name='', update=SceneRenderUpdate
+		)
 		
 		bpy.types.Scene.is_rendering_spritesheet = bpy.props.BoolProperty(name="Is rendering spritesheet", default=False)
 		bpy.types.Scene.spritesheet_render_progress = bpy.props.IntProperty(name="Spritesheet Render Progress", subtype="PERCENTAGE", min=0, max=100)
@@ -586,6 +683,7 @@ def unregister():
 	del bpy.types.Scene.always_rendered_objects
 	del bpy.types.Scene.lastfilepath
 	del bpy.types.Scene.spritesheet_settings
+	del bpy.types.Scene.scene_render_resolution
 
 
 if __name__ == "__main__":
