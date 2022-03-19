@@ -7,11 +7,13 @@ It can import meshes/animations of Clonks and it contains a spritesheet renderer
 or download the repository directly as zip-file. You don't need to unzip the addon after you downloaded it
 2. Install the addon like any other blender addon:
 
-  b. Start Blender and navigate to 'Edit->Preferences...' then Select the tab 'Add-ons' in the new Window
+	1. Start Blender and navigate to 'Edit->Preferences...' then Select the tab 'Add-ons' in the new Window
 <img src="https://github.com/RoboClonk/RenderClonkAddon/blob/main/TutorialPictures/Preferences.png" width="300">
-  c. Click on 'Install...' at the top right corner and browse to the zip-file via the filebrowser of Blender
+
+	2. Click on 'Install...' at the top right corner and browse to the zip-file via the filebrowser of Blender
 <img src="https://github.com/RoboClonk/RenderClonkAddon/blob/main/TutorialPictures/AddonList.png" width="400">
-  d. Make sure the addon appears in the list and the checkbox on the left is checked.
+
+	3. Make sure the addon appears in the list and the checkbox on the left is checked.
 <img src="https://github.com/RoboClonk/RenderClonkAddon/blob/main/TutorialPictures/RenderClonkEnabled.png" width="500">
 
 3. The addon can be found in the 3D View inside the properties panel (Open with 'N'). There is a Tab called Render Clonk
