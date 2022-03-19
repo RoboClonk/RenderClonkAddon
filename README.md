@@ -1,16 +1,16 @@
 # RenderClonkAddon
 An addon for Blender 3.0+ to produce graphic assets for the game LegacyClonk and Clonk Rage. 
-It can import meshes/animations of Clonks and it contains a spritesheet renderer which can render things like Clonks, buildings, vehicles (etc.) and export them directly to these games.[(Feature Video)](https://www.youtube.com/watch?v=XdD8F05txps&ab_channel=robinhohni)
+It can import meshes/animations of Clonks and it contains a spritesheet renderer which can render things like Clonks, buildings, vehicles (etc.) and export them directly to these games. [(Feature Video)](https://www.youtube.com/watch?v=XdD8F05txps&ab_channel=robinhohni)
 
 ## Installation
 1. Go to the releases to get the latest stable version of the addon
 or download the repository directly as zip-file. You don't need to unzip the addon after you downloaded it
 2. Install the addon like any other blender addon:
-  a. Start Blender
-  b. Navigate to 'Edit->Preferences...' then Select the tab 'Add-ons' in the new Window
-<img src="https://github.com/RoboClonk/RenderClonkAddon/blob/main/TutorialPictures/Preferences.png" width="350">
+
+  b. Start Blender and navigate to 'Edit->Preferences...' then Select the tab 'Add-ons' in the new Window
+<img src="https://github.com/RoboClonk/RenderClonkAddon/blob/main/TutorialPictures/Preferences.png" width="300">
   c. Click on 'Install...' at the top right corner and browse to the zip-file via the filebrowser of Blender
-<img src="https://github.com/RoboClonk/RenderClonkAddon/blob/main/TutorialPictures/AddonList.png" width="350">
+<img src="https://github.com/RoboClonk/RenderClonkAddon/blob/main/TutorialPictures/AddonList.png" width="400">
   d. Make sure the addon appears in the list and the checkbox on the left is checked.
 <img src="https://github.com/RoboClonk/RenderClonkAddon/blob/main/TutorialPictures/RenderClonkEnabled.png" width="500">
 
