@@ -10,10 +10,10 @@ or download the repository directly as zip-file
   - Navigate to 'Edit->Preferences...' then Select the tab 'Add-ons' in the new Window
   - Click on 'Install...' at the top right corner and browse to the zip-file via the filebrowser of Blender
   - Make sure the addon appears in the list and the checkbox on the left is checked.
-![](https://github.com/RoboClonk/RenderClonkAddon/TutorialPictures/main/RenderClonkEnabled.png?raw=true)
+![](https://github.com/RoboClonk/RenderClonkAddon/blob/main/TutorialPictures/RenderClonkEnabled.png?raw=true)
 
   - The addon can be found in the 3D View inside the properties panel (Open with 'N'). There is a Tab called Render Clonk
-![](https://github.com/RoboClonk/RenderClonkAddon/TutorialPictures/main/AddonTab.png?raw=true)
+![](https://github.com/RoboClonk/RenderClonkAddon/blob/main/TutorialPictures/AddonTab.png?raw=true)
 
 ## Examples
 
@@ -22,9 +22,10 @@ There is an [Examples Release](https://github.com/RoboClonk/RenderClonkAddon/rel
 
 
 ## Before Importing Clonks
-```python
+
 If you want to import Clonk meshes, your folder structure can look like this: 
 
+```python
      Clonk Content
            |
 ------------------------
