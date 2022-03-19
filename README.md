@@ -1,19 +1,23 @@
 # RenderClonkAddon
-An addon for Blender 3.0+ to import meshes/animations of the game LegacyClonk and Clonk Rage.
-The addon contains a complete spritesheet renderer. Clonks, buildings, vehicles (etc.) can be rendered with animations onto a spritesheet.
+An addon for Blender 3.0+ to produce graphic assets for the game LegacyClonk and Clonk Rage. 
+It can import meshes/animations of Clonks and it contains a spritesheet renderer which can render things like Clonks, buildings, vehicles (etc.) and export them directly to these games.[(Feature Video)](https://www.youtube.com/watch?v=XdD8F05txps&ab_channel=robinhohni)
 
 ## Installation
 1. Go to the releases to get the latest stable version of the addon
-or download the repository directly as zip-file
-2. Install the addon like any other blender addon. 
-  * You don't need to unzip the addon after you downloaded it and start blender
-  * Navigate to 'Edit->Preferences...' then Select the tab 'Add-ons' in the new Window
-  * Click on 'Install...' at the top right corner and browse to the zip-file via the filebrowser of Blender
-  * Make sure the addon appears in the list and the checkbox on the left is checked.
-![](https://github.com/RoboClonk/RenderClonkAddon/blob/main/TutorialPictures/RenderClonkEnabled.png?raw=true)
+or download the repository directly as zip-file. You don't need to unzip the addon after you downloaded it
+2. Install the addon like any other blender addon:
+  a. Start Blender
+  b. Navigate to 'Edit->Preferences...' then Select the tab 'Add-ons' in the new Window
+<img src="https://github.com/RoboClonk/RenderClonkAddon/blob/main/TutorialPictures/Preferences.png" width="350">
+  c. Click on 'Install...' at the top right corner and browse to the zip-file via the filebrowser of Blender
+<img src="https://github.com/RoboClonk/RenderClonkAddon/blob/main/TutorialPictures/AddonList.png" width="350">
+  d. Make sure the addon appears in the list and the checkbox on the left is checked.
+<img src="https://github.com/RoboClonk/RenderClonkAddon/blob/main/TutorialPictures/RenderClonkEnabled.png" width="500">
 
-  * The addon can be found in the 3D View inside the properties panel (Open with 'N'). There is a Tab called Render Clonk
-<img src="https://github.com/RoboClonk/RenderClonkAddon/blob/main/TutorialPictures/AddonTab.png" width="100">
+3. The addon can be found in the 3D View inside the properties panel (Open with 'N'). There is a Tab called Render Clonk
+<img src="https://github.com/RoboClonk/RenderClonkAddon/blob/main/TutorialPictures/AddonTab.png" width="350">
+
+4. From there you can import Clonk meshes and animations as well as render spritesheets for them.
 
 
 ## Examples
@@ -45,7 +49,7 @@ A few notes on this:
 
 BUT the hierarchy should stay flat (don't use subfolders) otherwise the addon will not find actions or tools that belong to your meshes. I don't use recursive search in this addon to prevent it from accidentally searching through your entire file system.
 
-AND you only need this for importing the meshes/tools/animations. All the necessary information will be saved inside the blend-file with the addon.
+AND you only need this for importing the meshes/tools/animations. All the necessary information will be saved inside the blend-file with the addon. :)
 
 
 
