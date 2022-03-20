@@ -159,12 +159,15 @@ class Menu_Button(bpy.types.Operator):
 		if self.menu_active == 10:
 			# Prepare Path
 			output_directorypath = PathUtilities.GetOutputPath()
-			print(output_directorypath)
+			
 			if context.scene.custom_output_dir != "":
 				output_directorypath = bpy.path.abspath(context.scene.custom_output_dir)
+				print("Output path: ", output_directorypath)
 				if not os.path.exists(output_directorypath):
 					self.report({"ERROR"}, f"Custom Directory not found.")
 					return {'FINISHED'}
+			else:
+				print("Output path: ", output_directorypath)
 
 			info_type, info_text = ClonkPort.PrintActmap(output_directorypath)
 			self.report({info_type}, info_text)
@@ -175,10 +178,13 @@ class Menu_Button(bpy.types.Operator):
 			output_directorypath = PathUtilities.GetOutputPath()
 			if context.scene.custom_output_dir != "":
 				output_directorypath = bpy.path.abspath(context.scene.custom_output_dir)
+				print("Output path: ", output_directorypath)
 				if not os.path.exists(output_directorypath):
 					self.cancel(context)
 					self.report({"ERROR"}, f"Custom Directory not found.")
 					return {'FINISHED'}
+			else:
+				print("Output path: ", output_directorypath)
 
 			info_type, info_text = ClonkPort.PrintDefCore(output_directorypath)
 			self.report({info_type}, info_text)

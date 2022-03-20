@@ -147,7 +147,9 @@ def ImportActList(path, animfiles, meshfiles, target, create_entry, import_tools
 def ImportActMap(path, animfiles, meshfiles, target, create_entry, import_tools):
 	print("Read actmap " + path)
 	file = open(path, "r")
-	actmap = IniPort.Read(path)
+	actmap, messagetype, message = IniPort.Read(path)
+	if messagetype == "ERROR":
+		return messagetype, message
 	
 	print("Looking in " + str(len(animfiles)) + " animfiles")
 
@@ -418,7 +420,9 @@ def PrintActmap(path, remove_unused_sections=False):
 	if os.path.exists(actmap_path):
 		if PathUtilities.CanReadFile(actmap_path) == False or PathUtilities.CanWriteFile(actmap_path) == False:
 			return "ERROR", "Need read/write permissions at output path. Aborted."
-		file_content = IniPort.Read(actmap_path)
+		file_content, messagetype, message = IniPort.Read(actmap_path)
+		if messagetype == "ERROR":
+			return messagetype, message
 	else:
 		print("No old Actmap.txt found. Creating new..")
 
@@ -498,7 +502,9 @@ def PrintActmap(path, remove_unused_sections=False):
 		unmatched_actions += section["Name"] + ", "
 
 	# Save content
-	IniPort.Write(actmap_path, output_content)
+	messagetype, message = IniPort.Write(actmap_path, output_content)
+	if messagetype == "ERROR":
+		return messagetype, message
 	if len(unmatched_actions) > 0:
 		return "WARNING", "Exported ActMap.txt but some actions couldn't be matched: %s. You can create entries for it in the action list and export the ActMap again." % [unmatched_actions]
 	else:
@@ -516,7 +522,9 @@ def PrintDefCore(path):
 	if os.path.exists(defcore_path):
 		if PathUtilities.CanReadFile(defcore_path) == False or PathUtilities.CanWriteFile(defcore_path) == False:
 			return "ERROR", "Need read/write permissions at output path. Aborted."
-		file_content = IniPort.Read(defcore_path)
+		file_content, messagetype, message = IniPort.Read(defcore_path)
+		if messagetype == "ERROR":
+			return messagetype, message
 	else:
 		print("No old DefCore.txt found. Creating new..")
 
@@ -561,7 +569,9 @@ def PrintDefCore(path):
 		content_section["Scale"] = str(bpy.context.scene.render.resolution_percentage)
 
 	# Save content
-	IniPort.Write(defcore_path, output_content)
+	messagetype, message = IniPort.Write(defcore_path, output_content)
+	if messagetype == "ERROR":
+		return messagetype, message
 	return "INFO", "Exported DefCore.txt"
 
 def SetOptimalRenderingSettings():

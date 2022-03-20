@@ -8,13 +8,15 @@ import os
 from pathlib import Path
 
 def Read(filepath):
+	messagetype = "INFO"
+	message = "Ini file read successfully"
 	file_content = []
 
 	file = None
 	if os.path.exists(filepath):
 		try:
 			# opening the file in read mode
-			file = open(filepath, "r")
+			file = open(filepath, "r", encoding="ISO-8859-1")
 			lines = file.readlines()
 			current_section_index = -1
 			
@@ -39,14 +41,21 @@ def Read(filepath):
 			path = Path(filepath)
 			print("Finished reading " + path.name)
 		
-		except:
-			print("There is no file at path " + filepath)
+		except BaseException as Err:
+			path = Path(filepath)
+			print("", Err)
+			messagetype = "ERROR"
+			message = "While reading " + path.name + " ini: " + str(Err)
 
 		finally:
 			if file:
 				file.close()
+	else:
+		messagetype = "WARNING"
+		message = "No file found"
+
 			
-	return file_content
+	return file_content, messagetype, message
 
 def Write(filepath, file_content):
 	messagetype = "INFO"
@@ -54,7 +63,7 @@ def Write(filepath, file_content):
 	
 	file = None
 	try:
-		file = open(filepath, "w")
+		file = open(filepath, "w", encoding="ISO-8859-1")
 		
 		for section_content in file_content:
 			for entry_key in section_content:
@@ -67,12 +76,13 @@ def Write(filepath, file_content):
 			file.write("\n")
 
 		path = Path(filepath)
-		print("Finished writing at" + path)
+		print("Finished writing at" + path.name)
 
-	except:
-		print("Could not open file at " + filepath)
+	except BaseException as Err:
+		path = Path(filepath)
+		print("", Err)
 		messagetype = "ERROR"
-		message = "Could not open file at " + filepath
+		message = "While writing " + path.name + " ini: " + str(Err)
 
 	finally:
 		if file:
