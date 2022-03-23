@@ -7,13 +7,11 @@ It can import meshes/animations of Clonks and it contains a spritesheet renderer
 or download the repository directly as zip-file. You don't need to unzip the addon after you downloaded it
 2. Install the addon like any other blender addon:
 
-	- Start Blender and navigate to 'Edit->Preferences...' then Select the tab 'Add-ons' in the new Window
+	a. Start Blender and navigate to 'Edit->Preferences...' then Select the tab 'Add-ons' in the new Window
 <img src="https://github.com/RoboClonk/RenderClonkAddon/blob/main/TutorialPictures/Preferences.png" width="300">
-
-	- Click on 'Install...' at the top right corner and browse to the zip-file via the filebrowser of Blender
+	b. Click on 'Install...' at the top right corner and browse to the zip-file via the filebrowser of Blender
 <img src="https://github.com/RoboClonk/RenderClonkAddon/blob/main/TutorialPictures/AddonList.png" width="400">
-
-	- Make sure the addon appears in the list and the checkbox on the left is checked.
+	c. Make sure the addon appears in the list and the checkbox on the left is checked.
 <img src="https://github.com/RoboClonk/RenderClonkAddon/blob/main/TutorialPictures/RenderClonkEnabled.png" width="500">
 
 3. The addon can be found in the 3D View inside the properties panel (Open with 'N'). There is a Tab called Render Clonk
@@ -28,16 +26,18 @@ There is an [Examples Release](https://github.com/RoboClonk/RenderClonkAddon/rel
 
 
 
-## Before Importing Clonks
+## Clonk content files
 
-If you want to import Clonk meshes, your folder structure can look like this: 
+I uploaded a folder as an extra release, that contains [clonk content files](https://github.com/RoboClonk/RenderClonkAddon/releases/tag/Content), that can be imported by the addon.
+
+If you have your own content files and want to import them with the addon, your folder structure should look like this: 
 
 ```python
      Clonk Content
            |
 ------------------------
 |          |           |
-Meshes     Actions     Tools
+Clonks     Actions     Tools
 |
 Textures
 ```
