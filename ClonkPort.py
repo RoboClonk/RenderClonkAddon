@@ -597,7 +597,6 @@ def SetOptimalRenderingSettings():
 	bpy.context.scene.cycles.glossy_bounces = 1
 	bpy.context.scene.render.use_persistent_data = True
 	bpy.context.scene.cycles.samples = 1024
-	bpy.context.scene.render.image_settings.compression = 0
 	bpy.context.scene.render.fps = 15
 
 	Overlay, Holdout, Fill = GetOrAppendOverlayMaterials()

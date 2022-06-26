@@ -13,10 +13,10 @@
 
 bl_info = {
 	"name" : "RenderClonk",
-	"author" : "Robin H.",
+	"author" : "Robin Hohnsbeen",
 	"description" : "For importing Clonk meshes and rendering spritesheets.",
 	"blender" : (3, 0, 1),
-	"version" : (2, 0, 0),
+	"version" : (2, 2, 1),
 	"location" : "",
 	"warning" : "",
 	"category" : "Render"
@@ -59,7 +59,7 @@ importlib.reload(MetaData)
 importlib.reload(IniPort)
 
 
-print ("Render Clonk 2.0")
+print ("Render Clonk 2.2")
 
 
 AddonDirectory = ""
@@ -400,6 +400,14 @@ class ACTIONSETTINGS_PT_SubPanel(bpy.types.Panel):
 				action_data_layout2 = layout.row(align=True)
 				action_data_layout2.prop(anim_entry, "width")
 				action_data_layout2.prop(anim_entry, "height")
+
+			override_cam_col = layout.column(align=True)
+			override_camera_row = override_cam_col.row()
+			override_camera_row.alignment = "RIGHT"
+			override_camera_row.label(text="Override camera", icon="OUTLINER_OB_CAMERA")
+			override_camera_row.prop(anim_entry, "override_camera")
+			if anim_entry.override_camera != None and anim_entry.override_camera.type != "CAMERA":
+				override_cam_col.label(text="Object is no camera!", icon="ERROR")
 				
 
 			additional_objects_layout = layout.column(align=True)
@@ -448,6 +456,8 @@ class ACTIONSETTINGS_PT_SubPanel(bpy.types.Panel):
 			region_cropping_layout_col.prop(anim_entry, "invert_region_cropping")
 
 			layout.prop(anim_entry, "use_normal_action_placement")
+
+			
 
 
 		layout.separator(factor=2.0)

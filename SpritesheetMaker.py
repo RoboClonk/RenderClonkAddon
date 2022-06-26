@@ -255,6 +255,9 @@ def prepare_action(action_entry : MetaData.ActionMetaData):
 		MetaData.SetRenderBorder(action_entry)
 	else:
 		MetaData.UnsetRenderBorder()
+
+	if action_entry.override_camera and action_entry.override_camera.type == "CAMERA":
+		bpy.context.scene.camera = action_entry.override_camera
 	
 
 def get_current_render_dimensions(action_entry):
@@ -369,6 +372,8 @@ class TIMER_OT(bpy.types.Operator):
 
 	has_been_cancelled = False
 
+	default_camera = None
+
 	cancel_message_type = ""
 	cancel_message = ""
 
@@ -384,6 +389,8 @@ class TIMER_OT(bpy.types.Operator):
 
 		self.base_x = bpy.context.scene.render.resolution_x
 		self.base_y = bpy.context.scene.render.resolution_y
+
+		self.default_camera = bpy.context.scene.camera
 
 		if messagetype == "ERROR" or messagetype == "WARNING":
 			self.cancel(context)
@@ -465,6 +472,7 @@ class TIMER_OT(bpy.types.Operator):
 				current_action = self.action_entries[self.current_action_index]
 				bpy.context.scene.render.resolution_x = self.base_x
 				bpy.context.scene.render.resolution_y = self.base_y
+				bpy.context.scene.camera = self.default_camera
 				prepare_action(current_action)
 				if current_action.find_material_name != "" and current_action.replace_material != None:
 					ReplaceMaterialWithName(self.replacement_materials, current_action.find_material_name, current_action.replace_material)
@@ -576,6 +584,7 @@ class TIMER_OT(bpy.types.Operator):
 		bpy.context.scene.render.resolution_y = self.base_y
 		bpy.context.scene.render.use_border = False
 		bpy.context.scene.render.use_crop_to_border = False
+		bpy.context.scene.camera = self.default_camera
 
 		if self.current_action_index < len(self.action_entries):
 			current_action : MetaData.ActionMetaData = self.action_entries[self.current_action_index]
@@ -613,6 +622,8 @@ class PREVIEW_OT(bpy.types.Operator):
 	base_x = 16
 	base_y = 20
 
+	default_camera = None
+
 	def execute(self, context):
 		context.window_manager.modal_handler_add(self)
 		action_entry = bpy.context.scene.animlist[bpy.context.scene.action_meta_data_index]
@@ -622,6 +633,7 @@ class PREVIEW_OT(bpy.types.Operator):
 		self.currentframe = bpy.context.scene.frame_current
 		self.base_x = bpy.context.scene.render.resolution_x
 		self.base_y = bpy.context.scene.render.resolution_y
+		self.default_camera = bpy.context.scene.camera
 
 		prepare_action(action_entry)
 		if action_entry.find_material_name != "" and action_entry.replace_material != None:
@@ -652,6 +664,7 @@ class PREVIEW_OT(bpy.types.Operator):
 			bpy.context.scene.render.resolution_y = self.base_y
 			bpy.context.scene.render.use_border = False
 			bpy.context.scene.render.use_crop_to_border = False
+			bpy.context.scene.camera = self.default_camera
 
 			return {'FINISHED'}
 

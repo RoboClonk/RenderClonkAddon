@@ -58,6 +58,7 @@ class ActionMetaData(bpy.types.PropertyGroup):
 		default=True, 
 		description="Determines whether this action is placed on the spritesheet in order of its list index (Default) or placed at the end where it fits (Non default). Uncheck this for title images of objects or Clonks"
 	)
+	override_camera : bpy.props.PointerProperty(type=bpy.types.Object, name='', description="The camera that will be used during this action instead of the default one. Can be left empty.")
 
 
 class SpriteSheetMetaData(bpy.types.PropertyGroup):
