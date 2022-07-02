@@ -614,6 +614,8 @@ def SetOptimalRenderingSettings():
 		bpy.context.scene.render.resolution_x = 16
 		bpy.context.scene.render.resolution_y = 20
 
+	bpy.context.scene.render.image_settings.file_format = "PNG"
+	bpy.context.scene.render.image_settings.color_mode = "RGBA"
 	bpy.context.scene.render.image_settings.compression = 0
 	bpy.context.scene.cycles.use_denoising = False
 	bpy.context.scene.cycles.caustics_reflective = False
