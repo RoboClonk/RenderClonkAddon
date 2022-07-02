@@ -236,6 +236,19 @@ def GetOrAppendClonkRig(ReuseOld=True):
 
 	return bpy.data.objects['ClonkRig']
 
+def GetOrAppendCamSetup(ReuseOld=True):
+	collection_index = bpy.data.collections.find("CamSetup")
+	if collection_index == -1 or ReuseOld == False:
+		global AddonDir
+		dir = Path(AddonDir)
+		bpy.ops.wm.append(
+			filepath="RenderClonk.blend",
+			directory=str(Path.joinpath(dir, "RenderClonk.blend", "Collection")),
+			filename="CamSetup"
+			)
+
+	return bpy.data.collections['CamSetup']
+
 def import_mesh_and_parent_to_rig(path, reuse_rig, insert_collection=None):
 	clonk_rig = GetOrAppendClonkRig(reuse_rig)
 	
@@ -574,6 +587,19 @@ def PrintDefCore(path):
 		return messagetype, message
 	return "INFO", "Exported DefCore.txt"
 
+def LoadRenderClonkWorld():
+	global AddonDir
+	dir = Path(AddonDir)
+
+	if bpy.data.worlds.find("RenderClonkWorld") == -1:
+		bpy.ops.wm.append(
+		filepath="RenderClonk.blend",
+		directory=str(Path.joinpath(dir, "RenderClonk.blend", "World")),
+		filename="RenderClonkWorld"
+		)
+
+	bpy.context.scene.world = bpy.data.worlds['RenderClonkWorld']
+
 def SetOptimalRenderingSettings():
 	bpy.context.scene.has_applied_rendersettings = True
 
@@ -603,3 +629,5 @@ def SetOptimalRenderingSettings():
 
 	bpy.context.scene.spritesheet_settings.overlay_material = Overlay
 	bpy.context.scene.spritesheet_settings.fill_material = Fill
+
+	LoadRenderClonkWorld()

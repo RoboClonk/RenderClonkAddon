@@ -84,6 +84,7 @@ class MAIN_PT_SettingsPanel(bpy.types.Panel):
 
 		layout.separator()
 
+		layout.label(text="Load Clonk data")
 		actlist_layout = layout.column(align=True)
 		actlist_layout.operator(Menu_Button.bl_idname, text="Import Action List (.act)", icon="IMPORT").menu_active = 6
 		
@@ -97,7 +98,11 @@ class MAIN_PT_SettingsPanel(bpy.types.Panel):
 
 		layout.separator()
 
+		layout.label(text="..or start from scratch")
+
 		layout.operator(Menu_Button.bl_idname, text="Append Clonk Rig", icon="OUTLINER_OB_ARMATURE").menu_active = 7
+
+		layout.operator(Menu_Button.bl_idname, text="Append Camera+Light", icon="LIGHT").menu_active = 13
 		
 
 
@@ -148,6 +153,10 @@ class Menu_Button(bpy.types.Operator):
 		#Append Clonk Rig
 		if self.menu_active == 7:
 			ClonkPort.GetOrAppendClonkRig(False)
+
+		#Append Render Scene
+		if self.menu_active == 13:
+			ClonkPort.GetOrAppendCamSetup(False)
 
 		# Preview Action
 		if self.menu_active == 8:
