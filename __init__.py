@@ -16,7 +16,7 @@ bl_info = {
 	"author" : "Robin Hohnsbeen",
 	"description" : "For importing Clonk meshes and rendering spritesheets.",
 	"blender" : (3, 0, 1),
-	"version" : (2, 2, 1),
+	"version" : (2, 3, 0),
 	"location" : "",
 	"warning" : "",
 	"category" : "Render"
@@ -59,7 +59,7 @@ importlib.reload(MetaData)
 importlib.reload(IniPort)
 
 
-print ("Render Clonk 2.2")
+print ("Render Clonk 2.3")
 
 
 AddonDirectory = ""
