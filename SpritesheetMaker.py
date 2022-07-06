@@ -275,6 +275,9 @@ def GetMaterialsToReplace():
 			continue
 
 		for material_index, material_slot in enumerate(object.material_slots):
+			if material_slot.material == None:
+				continue
+			
 			is_overlay = "overlay" in material_slot.material.name.lower()
 			
 			material_info = {
