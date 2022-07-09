@@ -58,8 +58,14 @@ class ActionMetaData(bpy.types.PropertyGroup):
 		default=True, 
 		description="Determines whether this action is placed on the spritesheet in order of its list index (Default) or placed at the end where it fits (Non default). Uncheck this for title images of objects or Clonks"
 	)
-	override_camera : bpy.props.PointerProperty(type=bpy.types.Object, name='', description="The camera that will be used during this action instead of the default one. Can be left empty.")
-
+	override_camera : bpy.props.PointerProperty(type=bpy.types.Object, name='', description="The camera that will be used during this action instead of the default one. Can be left empty")
+	override_facet_offset : bpy.props.BoolProperty(
+		name='Override facet offset', 
+		default=False, 
+		description="Overrides the facet offset inside ActMap.txt. Has no effect on rendering the action"
+	)
+	facet_offset_x : bpy.props.IntProperty(name='Facet offset x', default=0, description="X direction offset in which the facet will be moved inside the game")
+	facet_offset_y : bpy.props.IntProperty(name='Facet offset y', default=0, description="Y direction offset in which the facet will be moved inside the game")
 
 class SpriteSheetMetaData(bpy.types.PropertyGroup):
 	overlay_rendering_enum : bpy.props.EnumProperty(

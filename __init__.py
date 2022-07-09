@@ -50,12 +50,12 @@ from . import MetaData
 from . import IniPort
 from . import PathUtilities
 import importlib
+importlib.reload(MetaData)
 importlib.reload(MeshPort)
 importlib.reload(AnimPort)
 importlib.reload(SpritesheetMaker)
 importlib.reload(ClonkPort)
 importlib.reload(PathUtilities)
-importlib.reload(MetaData)
 importlib.reload(IniPort)
 
 
@@ -466,7 +466,12 @@ class ACTIONSETTINGS_PT_SubPanel(bpy.types.Panel):
 
 			layout.prop(anim_entry, "use_normal_action_placement")
 
-			
+			facet_offset_layout = layout.column(align=True)
+			facet_offset_layout.prop(anim_entry, "override_facet_offset")
+			if anim_entry.override_facet_offset:
+				facet_offset_layout2 = facet_offset_layout.row(align=True)
+				facet_offset_layout2.prop(anim_entry, "facet_offset_x")
+				facet_offset_layout2.prop(anim_entry, "facet_offset_y")
 
 
 		layout.separator(factor=2.0)

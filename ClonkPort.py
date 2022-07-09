@@ -502,6 +502,9 @@ def PrintActmap(path, remove_unused_sections=False):
 			y_offset = SpritesheetMaker.get_sprite_height(reference_action_entry, include_cropping=False) - min_max_pixels[3]
 			Facet += "," +  str(min_max_pixels[0]) + "," + str(y_offset)
 
+		elif reference_action_entry.override_facet_offset and (reference_action_entry.facet_offset_x != 0 or reference_action_entry.facet_offset_y != 0):
+			Facet += "," +  str(reference_action_entry.facet_offset_x) + "," + str(reference_action_entry.facet_offset_y)
+
 		content_section["Facet"] = Facet
 
 		output_content.append(content_section)
