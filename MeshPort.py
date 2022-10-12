@@ -253,6 +253,7 @@ def import_mesh(path, insert_collection=None):
 
 				if param_name == "Image":
 					current_material = bpy.data.materials.get(current_mat_name)
+					current_material.use_nodes = True
 					node_tree = current_material.node_tree
 					texture_node = node_tree.nodes.new("ShaderNodeTexImage")
 					
