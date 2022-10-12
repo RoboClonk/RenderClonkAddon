@@ -383,7 +383,6 @@ class ACTIONSETTINGS_PT_SubPanel(bpy.types.Panel):
 		else:
 			anim_entry = scene.animlist[scene.action_meta_data_index]
 			blender_action_layout = action_data_layout.row(align=True)
-			#blender_action_layout.alignment = "RIGHT"
 			blender_action_layout.prop(anim_entry, "action")
 			if anim_entry.action == None:
 				blender_action_layout.operator("actionadd.settings_op", text="", icon="ADD")
@@ -418,7 +417,47 @@ class ACTIONSETTINGS_PT_SubPanel(bpy.types.Panel):
 				action_data_layout2.prop(anim_entry, "width")
 				action_data_layout2.prop(anim_entry, "height")
 
-			layout.separator(factor=0.3)
+			if (anim_entry.override_resolution 
+			and (anim_entry.width != scene.render.resolution_x or anim_entry.height != scene.render.resolution_y or SpritesheetMaker.preview_active)
+			and anim_entry.render_type_enum == "Spriteanimation"):
+				x_offset, y_offset = MetaData.get_automatic_face_offset(scene, anim_entry)
+				shift_offset = anim_entry.override_camera_shift and anim_entry.camera_shift_changes_facet_offset
+				
+				x_addition = f" shift {anim_entry.camera_shift_x}" if shift_offset else ""
+				y_addition = f" shift {anim_entry.camera_shift_y}" if shift_offset else ""
+
+				facet_offset_text = f"Automatic facet offset x:{x_offset}{x_addition}, y:{y_offset}{y_addition}"
+				if anim_entry.override_facet_offset:
+					facet_offset_text = f"Manual facet offset below. (x:{anim_entry.facet_offset_x}{x_addition}, y:{anim_entry.facet_offset_y}{y_addition})"
+				
+
+				action_data_layout3.label(text=facet_offset_text)
+				action_data_layout3.label(text=f"Automatic orthographic scale: {round(SpritesheetMaker.GetOrthoScale(anim_entry), 2)}")
+
+			layout.separator(factor=0.1)
+
+			camera_shift_layout = layout.column(align=True)
+			camera_shift_layout.prop(anim_entry, "override_camera_shift")
+			if anim_entry.override_camera_shift:
+				camera_shift_layout2 = camera_shift_layout.row(align=True)
+				camera_shift_layout2.prop(anim_entry, "camera_shift_x")
+				camera_shift_layout2.prop(anim_entry, "camera_shift_y")
+
+				camera_shift_layout.prop(anim_entry, "camera_shift_changes_facet_offset")
+				
+
+			layout.separator(factor=0.1)
+
+			facet_offset_layout = layout.column(align=True)
+			facet_offset_layout.prop(anim_entry, "override_facet_offset")
+			if anim_entry.override_facet_offset:
+				facet_offset_layout2 = facet_offset_layout.row(align=True)
+				facet_offset_layout2.prop(anim_entry, "facet_offset_x")
+				facet_offset_layout2.prop(anim_entry, "facet_offset_y")
+				if anim_entry.override_camera_shift == False and anim_entry.camera_shift_changes_facet_offset:
+					facet_offset_layout.label(text="The camera shift will be added to facet offset on export", icon="INFO")
+
+			layout.separator(factor=0.4)
 
 			override_cam_col = layout.column(align=True)
 			override_cam_col.alignment = "LEFT"
@@ -477,18 +516,16 @@ class ACTIONSETTINGS_PT_SubPanel(bpy.types.Panel):
 			region_cropping_layout_row = region_cropping_layout_col.row(align=True)
 			region_cropping_layout_row.operator("action.settings_op", text="Set", icon="PASTEDOWN").menu_active = 1
 			region_cropping_layout_row.operator("action.settings_op", text="Copy", icon="COPYDOWN").menu_active = 2
-			region_cropping_layout_row.operator("action.settings_op", text="Remove", icon="X").menu_active = 3
+			if MetaData.is_using_cutout(anim_entry):
+				region_cropping_layout_row.operator("action.settings_op", text="Remove", icon="X").menu_active = 3
 			region_cropping_layout_col.prop(anim_entry, "invert_region_cropping")
 			# ------
+			
+			layout.separator(factor=0.2)
 
 			layout.prop(anim_entry, "use_normal_action_placement")
 
-			facet_offset_layout = layout.column(align=True)
-			facet_offset_layout.prop(anim_entry, "override_facet_offset")
-			if anim_entry.override_facet_offset:
-				facet_offset_layout2 = facet_offset_layout.row(align=True)
-				facet_offset_layout2.prop(anim_entry, "facet_offset_x")
-				facet_offset_layout2.prop(anim_entry, "facet_offset_y")
+			
 
 
 		layout.separator(factor=2.0)

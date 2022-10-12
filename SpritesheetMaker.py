@@ -207,6 +207,12 @@ def reset_object(object):
 		object.rotation_euler = [0, 0, 0]
 	object.scale =  [1.0, 1.0, 1.0]
 
+def get_action_camera(action_entry):
+	if action_entry.override_camera and action_entry.override_camera.type == "CAMERA":
+		return action_entry.override_camera
+
+	return bpy.context.scene.camera
+
 def prepare_action(action_entry : MetaData.ActionMetaData):
 	if bpy.context.scene.anim_target == None:
 		raise AssertionError("No anim target assigned!")
@@ -256,8 +262,11 @@ def prepare_action(action_entry : MetaData.ActionMetaData):
 	else:
 		MetaData.UnsetRenderBorder()
 
-	if action_entry.override_camera and action_entry.override_camera.type == "CAMERA":
-		bpy.context.scene.camera = action_entry.override_camera
+	bpy.context.scene.camera = get_action_camera(action_entry)
+
+	if action_entry.override_camera_shift:
+		bpy.context.scene.camera.data.shift_x = 1.0/x_dim * action_entry.camera_shift_x
+		bpy.context.scene.camera.data.shift_y = 1.0/y_dim * action_entry.camera_shift_y
 	
 
 def get_current_render_dimensions(action_entry):
@@ -338,6 +347,31 @@ current_action_name = ""
 current_sheet_number = 1
 current_max_sheets = 1
 
+def GetOrthoScale(anim_entry):
+	action_camera = get_action_camera(anim_entry)
+	if action_camera.data.sensor_fit == "VERTICAL":
+		zoom_multiplier = anim_entry.height / bpy.context.scene.render.resolution_y
+	elif action_camera.data.sensor_fit == "HORIZONTAL":
+		zoom_multiplier = anim_entry.width / bpy.context.scene.render.resolution_x
+	else: # "AUTO"
+		if anim_entry.width > anim_entry.height:
+			zoom_multiplier = anim_entry.width / bpy.context.scene.render.resolution_x
+		else:
+			zoom_multiplier = anim_entry.height / bpy.context.scene.render.resolution_y
+
+	return action_camera.data.ortho_scale * zoom_multiplier
+
+def AdjustOrthoScale(anim_entry):
+	default_camera_zoom = {}
+	action_camera = get_action_camera(anim_entry)
+	
+	if anim_entry.override_resolution and anim_entry.render_type_enum == "Spriteanimation" and action_camera.data.type == "ORTHO":
+		default_camera_zoom[action_camera] = action_camera.data.ortho_scale
+
+		action_camera.data.ortho_scale = GetOrthoScale(anim_entry)
+
+	return default_camera_zoom
+
 # Spritesheet rendering
 class TIMER_OT(bpy.types.Operator):
 	"""Operator that shows a progress bar while rendering the spritesheet"""
@@ -376,6 +410,8 @@ class TIMER_OT(bpy.types.Operator):
 	has_been_cancelled = False
 
 	default_camera = None
+	default_camera_zoom = {} # Map from camera to default ortho scale
+	default_camera_shift = {} # Map from camera to default camera shift
 
 	cancel_message_type = ""
 	cancel_message = ""
@@ -456,6 +492,23 @@ class TIMER_OT(bpy.types.Operator):
 
 		return {'RUNNING_MODAL'}
 
+	def reset_ortho_scale(self):
+		for camera, default_ortho_scale in self.default_camera_zoom.items():
+			camera.data.ortho_scale = default_ortho_scale
+		
+		self.default_camera_zoom.clear()
+
+	def reset_camera_shift(self):
+		for camera, shift in self.default_camera_shift.items():
+			camera.data.shift_x = shift[0]
+			camera.data.shift_y = shift[1]
+		
+		self.default_camera_shift.clear()
+
+	def store_camera_shift(self, action_entry):
+		camera = get_action_camera(action_entry)
+
+		self.default_camera_shift[camera] = [camera.data.shift_x, camera.data.shift_y]
 
 	def modal(self, context: bpy.types.Context, event: bpy.types.Event):
 		if event.type in {'ESC'}:
@@ -475,8 +528,15 @@ class TIMER_OT(bpy.types.Operator):
 				current_action = self.action_entries[self.current_action_index]
 				bpy.context.scene.render.resolution_x = self.base_x
 				bpy.context.scene.render.resolution_y = self.base_y
+				self.reset_ortho_scale()
 				bpy.context.scene.camera = self.default_camera
+				self.default_camera_zoom = AdjustOrthoScale(current_action)
+				self.reset_camera_shift()
+				self.store_camera_shift(current_action)
+				
 				prepare_action(current_action)
+
+
 				if current_action.find_material_name != "" and current_action.replace_material != None:
 					ReplaceMaterialWithName(self.replacement_materials, current_action.find_material_name, current_action.replace_material)
 
@@ -588,6 +648,8 @@ class TIMER_OT(bpy.types.Operator):
 		bpy.context.scene.render.use_border = False
 		bpy.context.scene.render.use_crop_to_border = False
 		bpy.context.scene.camera = self.default_camera
+		self.reset_ortho_scale()
+		self.reset_camera_shift()
 
 		if self.current_action_index < len(self.action_entries):
 			current_action : MetaData.ActionMetaData = self.action_entries[self.current_action_index]
@@ -627,8 +689,13 @@ class PREVIEW_OT(bpy.types.Operator):
 
 	default_camera = None
 
-	def execute(self, context):
-		context.window_manager.modal_handler_add(self)
+	default_camera_zoom = {}
+	default_camera_shift_x = 0
+	default_camera_shift_y = 0
+
+	current_action_entry = None
+
+	def prepare_preview(self):
 		action_entry = bpy.context.scene.animlist[bpy.context.scene.action_meta_data_index]
 
 		self.framestart = bpy.context.scene.frame_start
@@ -637,8 +704,14 @@ class PREVIEW_OT(bpy.types.Operator):
 		self.base_x = bpy.context.scene.render.resolution_x
 		self.base_y = bpy.context.scene.render.resolution_y
 		self.default_camera = bpy.context.scene.camera
+		action_camera = get_action_camera(action_entry)
+		self.default_camera_shift_x = action_camera.data.shift_x
+		self.default_camera_shift_y = action_camera.data.shift_y
+		self.default_camera_zoom = AdjustOrthoScale(action_entry)
 
 		prepare_action(action_entry)
+
+
 		if action_entry.find_material_name != "" and action_entry.replace_material != None:
 			self.materials_to_replace = GetMaterialsToReplace()
 			self.search_name = action_entry.find_material_name
@@ -649,26 +722,83 @@ class PREVIEW_OT(bpy.types.Operator):
 		bpy.ops.screen.animation_play()
 		global preview_active
 		preview_active = True
+		self.current_action_entry = action_entry
+
+	def execute(self, context):
+		context.window_manager.modal_handler_add(self)
+
+		self.prepare_preview()
+		
 		return {'RUNNING_MODAL'}
 
-	def modal(self, context, event):
-		if event.type in {"RIGHTMOUSE", "ESC", "LEFTMOUSE"}:
-			if self.search_name != "" and self.replacement_material != None:
-				ResetMaterialReplacementByName(self.materials_to_replace, self.search_name, self.replacement_material)
-			
-			bpy.ops.screen.animation_cancel()
-			
-			global preview_active
-			preview_active = False
-			bpy.context.scene.frame_start = self.framestart
-			bpy.context.scene.frame_end = self.frameend
-			bpy.context.scene.frame_current = self.currentframe
-			bpy.context.scene.render.resolution_x = self.base_x
-			bpy.context.scene.render.resolution_y = self.base_y
-			bpy.context.scene.render.use_border = False
-			bpy.context.scene.render.use_crop_to_border = False
-			bpy.context.scene.camera = self.default_camera
+	def reset_ortho_scale(self):
+		for camera, default_ortho_scale in self.default_camera_zoom.items():
+			camera.data.ortho_scale = default_ortho_scale
+		
+		self.default_camera_zoom.clear()
 
+	def reset(self):
+		if self.search_name != "" and self.replacement_material != None:
+			ResetMaterialReplacementByName(self.materials_to_replace, self.search_name, self.replacement_material)
+			
+		bpy.ops.screen.animation_cancel()
+		
+		global preview_active
+		preview_active = False
+		bpy.context.scene.frame_start = self.framestart
+		bpy.context.scene.frame_end = self.frameend
+		bpy.context.scene.frame_current = self.currentframe
+		bpy.context.scene.render.resolution_x = self.base_x
+		bpy.context.scene.render.resolution_y = self.base_y
+		bpy.context.scene.render.use_border = False
+		bpy.context.scene.render.use_crop_to_border = False
+		bpy.context.scene.camera.data.shift_x = self.default_camera_shift_x
+		bpy.context.scene.camera.data.shift_y = self.default_camera_shift_y
+		bpy.context.scene.camera = self.default_camera
+		self.reset_ortho_scale()
+
+		self.current_action_entry = None
+
+	def modal(self, context, event):
+		if event.type in {"LEFT_ARROW", "RIGHT_ARROW", "UP_ARROW", "DOWN_ARROW"} and event.value == "PRESS":
+			if event.shift:
+				if event.type in {"LEFT_ARROW"}:
+					self.current_action_entry.camera_shift_x += 1
+				if event.type in {"RIGHT_ARROW"}:
+					self.current_action_entry.camera_shift_x -= 1
+				if event.type in {"UP_ARROW"}:
+					self.current_action_entry.camera_shift_y -= 1
+				if event.type in {"DOWN_ARROW"}:
+					self.current_action_entry.camera_shift_y += 1
+
+				self.current_action_entry.override_camera_shift = True
+			else:
+
+				if event.type in {"LEFT_ARROW"}:
+					self.current_action_entry.width -= 1
+				if event.type in {"RIGHT_ARROW"}:
+					self.current_action_entry.width += 1
+				if event.type in {"UP_ARROW"}:
+					self.current_action_entry.height += 1
+				if event.type in {"DOWN_ARROW"}:
+					self.current_action_entry.height -= 1
+
+				self.current_action_entry.override_resolution = True
+				
+
+			bpy.context.scene.camera.data.show_passepartout = True
+			bpy.context.scene.camera.data.passepartout_alpha = 0.6
+
+			self.reset()
+			self.prepare_preview()
+
+			
+
+
+		if event.type in {"RIGHTMOUSE", "ESC", "LEFTMOUSE"}:
+			self.reset()
 			return {'FINISHED'}
 
 		return {'RUNNING_MODAL'}
+
+	

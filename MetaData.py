@@ -41,8 +41,8 @@ class ActionMetaData(bpy.types.PropertyGroup):
 		)
 	additional_object : bpy.props.PointerProperty(type=bpy.types.Object, name='', description="An object that is only visible in this action. This can be used for tools that a clonk is holding for example")
 	additional_collection : bpy.props.PointerProperty(type=bpy.types.Collection, name='', description="A collection that holds objects that are only visible in this action. This can be used for tools that a clonk is holding for example")
-	find_material_name : bpy.props.StringProperty(name='Find material name', maxlen=32, description="Materials containing that name will be replaced by the replace material.")
-	replace_material : bpy.props.PointerProperty(type=bpy.types.Material, name='Replace material', description="The material that it will be replaced with.")
+	find_material_name : bpy.props.StringProperty(name='Find material name', maxlen=32, description="Materials containing that name will be replaced by the replace material")
+	replace_material : bpy.props.PointerProperty(type=bpy.types.Material, name='Replace material', description="The material that it will be replaced with")
 	region_cropping : bpy.props.FloatVectorProperty(
 		name='Region Cropping', 
 		default=[0.0, 1.0, 0.0, 1.0], 
@@ -66,6 +66,10 @@ class ActionMetaData(bpy.types.PropertyGroup):
 	)
 	facet_offset_x : bpy.props.IntProperty(name='Facet offset x', default=0, description="X direction offset in which the facet will be moved inside the game")
 	facet_offset_y : bpy.props.IntProperty(name='Facet offset y', default=0, description="Y direction offset in which the facet will be moved inside the game")
+	override_camera_shift : bpy.props.BoolProperty(name='Override camera shift', description="Change the camera shift for this action")
+	camera_shift_x : bpy.props.IntProperty(name='Camera shift x', default=0, description="X direction shift of the camera (in pixels)")
+	camera_shift_y : bpy.props.IntProperty(name='Camera shift y', default=0, description="Y direction shift of the camera (in pixels)")
+	camera_shift_changes_facet_offset : bpy.props.BoolProperty(name='Camera shift changes facet offset', default=True, description="The facet offset will automatically be changed to keep the sprite at its original position in the game")
 
 class SpriteSheetMetaData(bpy.types.PropertyGroup):
 	overlay_rendering_enum : bpy.props.EnumProperty(
@@ -91,6 +95,12 @@ def MakeRectCutoutPixelPerfect(action_entry : ActionMetaData):
 	action_entry.region_cropping[3] = math.floor(action_entry.region_cropping[3] / pixel_ratio_y) * pixel_ratio_y
 
 	return action_entry
+
+def get_automatic_face_offset(scene, anim_entry):
+	x_offset = -(anim_entry.width - scene.render.resolution_x) / 2.0
+	y_offset = -(anim_entry.height - scene.render.resolution_y) / 2.0
+
+	return round(x_offset), round(y_offset)
 
 def get_res_multiplier():
 	return bpy.context.scene.render.resolution_percentage / 100.0

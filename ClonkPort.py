@@ -496,14 +496,34 @@ def PrintActmap(path, remove_unused_sections=False):
 
 		Facet = x_pos + "," + y_pos + "," + sprite_width + "," + sprite_height
 
+		camera_shift_x = 0
+		camera_shift_y = 0
+		if reference_action_entry.override_camera_shift and reference_action_entry.camera_shift_changes_facet_offset:
+			camera_shift_x = reference_action_entry.camera_shift_x
+			camera_shift_y = reference_action_entry.camera_shift_y
+
 		if reference_action_entry.invert_region_cropping == False and MetaData.is_using_cutout(reference_action_entry):
 			min_max_pixels, pixel_dimensions = MetaData.GetPixelFromCutout(reference_action_entry)
 			# Add cropping offset to facet
 			y_offset = SpritesheetMaker.get_sprite_height(reference_action_entry, include_cropping=False) - min_max_pixels[3]
 			Facet += "," +  str(min_max_pixels[0]) + "," + str(y_offset)
 
-		elif reference_action_entry.override_facet_offset and (reference_action_entry.facet_offset_x != 0 or reference_action_entry.facet_offset_y != 0):
-			Facet += "," +  str(reference_action_entry.facet_offset_x) + "," + str(reference_action_entry.facet_offset_y)
+		elif reference_action_entry.override_facet_offset:
+			x_offset = reference_action_entry.facet_offset_x + camera_shift_x
+			y_offset = reference_action_entry.facet_offset_y + camera_shift_y
+			if x_offset != 0 or y_offset != 0:
+				Facet += "," +  str(x_offset) + "," + str(y_offset)
+
+		elif (reference_action_entry.override_resolution 
+		and (reference_action_entry.width != bpy.context.scene.render.resolution_x 
+		or reference_action_entry.height != bpy.context.scene.render.resolution_y)):
+			x_offset, y_offset = MetaData.get_automatic_face_offset(bpy.context.scene, reference_action_entry)
+			x_offset += camera_shift_x
+			y_offset += camera_shift_y
+			if x_offset != 0 or y_offset != 0:
+				Facet += "," +  str(x_offset) + "," + str(y_offset)
+
+			 
 
 		content_section["Facet"] = Facet
 
