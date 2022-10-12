@@ -388,6 +388,8 @@ class ACTIONSETTINGS_PT_SubPanel(bpy.types.Panel):
 			if anim_entry.action == None:
 				blender_action_layout.operator("actionadd.settings_op", text="", icon="ADD")
 
+			layout.separator(factor=0.1)
+
 			picture_layout = layout.column(align=True)
 			render_type_icon = "ARMATURE_DATA"
 			if anim_entry.render_type_enum == "Picture":
@@ -399,25 +401,34 @@ class ACTIONSETTINGS_PT_SubPanel(bpy.types.Panel):
 				frame_row.prop(anim_entry, "start_frame")
 				frame_row.prop(anim_entry, "max_frames")
 
-			layout.prop(anim_entry, "use_alternative_name")
+			layout.separator(factor=0.1)
+
+			name_layout = layout.column(align=True)
+			name_layout.prop(anim_entry, "use_alternative_name")
 			if anim_entry.use_alternative_name:
-				action_data_layout2 = layout.row(align=True)
+				action_data_layout2 = name_layout.row(align=True)
 				action_data_layout2.prop(anim_entry, "alternative_name", text="Name")
 
-			layout.prop(anim_entry, "override_resolution")
+			layout.separator(factor=0.1)
+
+			action_data_layout3 = layout.column(align=True)
+			action_data_layout3.prop(anim_entry, "override_resolution")
 			if anim_entry.override_resolution:
-				action_data_layout2 = layout.row(align=True)
+				action_data_layout2 = action_data_layout3.row(align=True)
 				action_data_layout2.prop(anim_entry, "width")
 				action_data_layout2.prop(anim_entry, "height")
 
+			layout.separator(factor=0.3)
+
 			override_cam_col = layout.column(align=True)
-			override_camera_row = override_cam_col.row()
-			override_camera_row.alignment = "RIGHT"
+			override_cam_col.alignment = "LEFT"
+			override_camera_row = override_cam_col.row(align=True)
 			override_camera_row.label(text="Override camera", icon="OUTLINER_OB_CAMERA")
 			override_camera_row.prop(anim_entry, "override_camera")
 			if anim_entry.override_camera != None and anim_entry.override_camera.type != "CAMERA":
 				override_cam_col.label(text="Object is no camera!", icon="ERROR")
 				
+			layout.separator(factor=0.1)
 
 			additional_objects_layout = layout.column(align=True)
 			additional_objects_layout.alignment = "LEFT"
@@ -430,21 +441,26 @@ class ACTIONSETTINGS_PT_SubPanel(bpy.types.Panel):
 				additional_objects_layout_row.prop(anim_entry, "additional_object")
 			else:
 				additional_objects_layout_row.prop(anim_entry, "additional_collection")	
-			additional_objects_layout.separator()
+			
+			layout.separator(factor=0.3)
 
 			material_column = layout.column(align=True)
-			material_name_row = material_column.row()
-			material_name_row.alignment = "RIGHT"
+			material_name_row = material_column.row(align=True)
+			material_name_row.alignment = "LEFT"
 			material_name_row.label(text="Material name")
 			material_name_row.prop(anim_entry, "find_material_name", text="")
 
-			replace_material_row = material_column.row()
-			replace_material_row.alignment = "RIGHT"
+			replace_material_row = material_column.row(align=True)
+			replace_material_row.alignment = "LEFT"
 			replace_material_row.enabled = len(anim_entry.find_material_name) > 0
-			replace_material_row.label(text="Replace with")
+			replace_material_row.label(text="Replace with  ")
 			replace_material_row.prop(anim_entry, "replace_material", text="")
 			
-			region_cropping_layout_col = layout.column(align=True)
+			layout.separator(factor=0.2)
+
+			# Region Cropping
+			box_layout = layout.box()
+			region_cropping_layout_col = box_layout.column(align=True)
 			if MetaData.is_using_cutout(anim_entry):
 				min_max_pixels, pixel_dimensions = MetaData.GetPixelFromCutout(anim_entry)
 				region_cropping_layout_col.label(text="Region cropping active", icon="CON_SIZELIMIT")
@@ -463,6 +479,7 @@ class ACTIONSETTINGS_PT_SubPanel(bpy.types.Panel):
 			region_cropping_layout_row.operator("action.settings_op", text="Copy", icon="COPYDOWN").menu_active = 2
 			region_cropping_layout_row.operator("action.settings_op", text="Remove", icon="X").menu_active = 3
 			region_cropping_layout_col.prop(anim_entry, "invert_region_cropping")
+			# ------
 
 			layout.prop(anim_entry, "use_normal_action_placement")
 
