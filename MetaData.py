@@ -12,7 +12,7 @@ class ActionMetaData(bpy.types.PropertyGroup):
 	override_resolution : bpy.props.BoolProperty(
 		name='Override resolution', 
 		default=False, 
-		description="You can render sprites with resolutions other than in the render settings. Keep in mind thought that all resolutions are multiplied by the resolution percentage (100% => 1.0, 200% => 2.0, ...)"
+		description="You can render sprites with resolutions other than in the render settings. Keep in mind thought that all resolutions are multiplied by the resolution percentage (100% => 1.0, 200% => 2.0, ...). Use [arrows keys] while in preview to change these values on the fly"
 	)
 	start_frame : bpy.props.IntProperty(name='Start frame', default=1, soft_min=0, description="The number of the first frame of the action")
 	max_frames : bpy.props.IntProperty(name='Max frames', default=16, min=1, soft_max=256, description="The amount of frames that are rendered for this action")
@@ -62,11 +62,11 @@ class ActionMetaData(bpy.types.PropertyGroup):
 	override_facet_offset : bpy.props.BoolProperty(
 		name='Override facet offset', 
 		default=False, 
-		description="Overrides the facet offset inside ActMap.txt. Has no effect on rendering the action"
+		description="Overrides the facet offset inside ActMap.txt. Has no effect on rendering the action, so you can simply hit export/update ActMap.txt"
 	)
 	facet_offset_x : bpy.props.IntProperty(name='Facet offset x', default=0, description="X direction offset in which the facet will be moved inside the game")
 	facet_offset_y : bpy.props.IntProperty(name='Facet offset y', default=0, description="Y direction offset in which the facet will be moved inside the game")
-	override_camera_shift : bpy.props.BoolProperty(name='Override camera shift', description="Change the camera shift for this action")
+	override_camera_shift : bpy.props.BoolProperty(name='Override camera shift', description="Change the camera shift for this action. Use [shift + arrow keys] while in preview to change these values on the fly. You need to rerender the sprite sheet and update the ActMap to see an effect in the game")
 	camera_shift_x : bpy.props.IntProperty(name='Camera shift x', default=0, description="X direction shift of the camera (in pixels)")
 	camera_shift_y : bpy.props.IntProperty(name='Camera shift y', default=0, description="Y direction shift of the camera (in pixels)")
 	camera_shift_changes_facet_offset : bpy.props.BoolProperty(name='Camera shift changes facet offset', default=True, description="The facet offset will automatically be changed to keep the sprite at its original position in the game")

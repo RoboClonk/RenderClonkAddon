@@ -424,7 +424,7 @@ class ACTIONSETTINGS_PT_SubPanel(bpy.types.Panel):
 				shift_offset = anim_entry.override_camera_shift and anim_entry.camera_shift_changes_facet_offset
 				
 				x_addition = f" shift {anim_entry.camera_shift_x}" if shift_offset else ""
-				y_addition = f" shift {anim_entry.camera_shift_y}" if shift_offset else ""
+				y_addition = f" shift {-anim_entry.camera_shift_y}" if shift_offset else ""
 
 				facet_offset_text = f"Automatic facet offset x:{x_offset}{x_addition}, y:{y_offset}{y_addition}"
 				if anim_entry.override_facet_offset:
