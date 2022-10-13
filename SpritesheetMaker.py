@@ -361,6 +361,27 @@ def GetOrthoScale(anim_entry):
 
 	return action_camera.data.ortho_scale * zoom_multiplier
 
+def GetImageForPicture(current_action, sprite_width, sprite_height):
+	predefined_image = None
+	if current_action.render_type_enum == "Picture" and (current_action.image_for_picture_combined != None or current_action.image_for_picture_overlay != None):
+		global current_sheet_number
+		
+		used_image = None
+		if current_action.image_for_picture_combined and current_sheet_number == 1:
+			used_image = current_action.image_for_picture_combined 
+
+		if current_sheet_number == 2:
+			if current_action.image_for_picture_overlay:
+				used_image = current_action.image_for_picture_overlay
+			elif current_action.image_for_picture_combined:
+				used_image = current_action.image_for_picture_combined 
+
+		if used_image:
+			predefined_image = used_image.copy()
+			predefined_image.scale(sprite_width, sprite_height)
+
+	return predefined_image
+
 def AdjustOrthoScale(anim_entry):
 	default_camera_zoom = {}
 	action_camera = get_action_camera(anim_entry)
@@ -552,19 +573,23 @@ class TIMER_OT(bpy.types.Operator):
 			# Render one sprite of sprite strip
 			if self.render_state == 1:
 				current_action = self.action_entries[self.current_action_index]
+				sprite_width = math.floor(get_sprite_width(current_action) * get_res_multiplier())
+				sprite_height = math.floor(get_sprite_height(current_action) * get_res_multiplier())
 				
 				if current_action.render_type_enum != "Picture":
 					bpy.context.scene.frame_current = self.current_frame_number + current_action.start_frame
-				output_filepath = os.path.join(PathUtilities.GetOutputPath(), "sprites", MetaData.GetActionName(current_action) + "_" + str(bpy.context.scene.frame_current))
 				
-				bpy.context.scene.render.filepath = output_filepath
-				bpy.ops.render.render(write_still=True)
-				
-				rendered_sprite_image = bpy.data.images.load(output_filepath + ".png")
+				rendered_sprite_image = GetImageForPicture(current_action, sprite_width, sprite_height)
+
+				if rendered_sprite_image == None:
+					output_filepath = os.path.join(PathUtilities.GetOutputPath(), "sprites", MetaData.GetActionName(current_action) + "_" + str(bpy.context.scene.frame_current))
+					
+					bpy.context.scene.render.filepath = output_filepath
+					bpy.ops.render.render(write_still=True)
+					
+					rendered_sprite_image = bpy.data.images.load(output_filepath + ".png")
 				
 				# Allocate a numpy array to manipulate pixel data.
-				sprite_width = math.floor(get_sprite_width(current_action) * get_res_multiplier())
-				sprite_height = math.floor(get_sprite_height(current_action) * get_res_multiplier())
 				sprite_pixel_data = np.zeros((sprite_height, sprite_width, 4), 'f')
 				# Fast copy of pixel data from bpy.data to numpy array.
 				rendered_sprite_image.pixels.foreach_get(sprite_pixel_data.ravel())

@@ -16,7 +16,7 @@ bl_info = {
 	"author" : "Robin Hohnsbeen",
 	"description" : "For importing Clonk meshes and rendering spritesheets.",
 	"blender" : (3, 0, 1),
-	"version" : (2, 4, 0),
+	"version" : (2, 4, 1),
 	"location" : "",
 	"warning" : "",
 	"category" : "Render"
@@ -141,7 +141,7 @@ class Menu_Button(bpy.types.Operator):
 				bpy.context.scene.spritesheet_settings.fill_material = Fill
 			
 			if bpy.context.scene.spritesheet_settings.overlay_rendering_enum == "Separate":	
-				# Render overlay
+				# Render with overlay
 				bpy.ops.timer.progress(output_image_name="Graphics", set_overlay_material=True, replace_overlay_material=False)
 			else:
 				bpy.ops.timer.progress(output_image_name="Graphics")
@@ -399,16 +399,33 @@ class ACTIONSETTINGS_PT_SubPanel(bpy.types.Panel):
 			if anim_entry.render_type_enum == "Spriteanimation":
 				frame_row.prop(anim_entry, "start_frame")
 				frame_row.prop(anim_entry, "max_frames")
+			else:
+				layout.separator(factor=0.1)
+
+				picture_image_load_layout = layout.box()
+				picture_image_load_layout.label(text="You can use an image instead of rendering.", icon="INFO")
+				combined_picture = picture_image_load_layout.row(align=True)
+				combined_picture.label(text="Graphics image")
+				combined_picture.prop(anim_entry, "image_for_picture_combined")
+				combined_picture.operator(ClonkPort.OT_PictureFilebrowser.bl_idname, text="", icon="FILE_FOLDER")
+				overlay_layout = picture_image_load_layout.row(align=True)
+				overlay_layout.enabled = scene.spritesheet_settings.overlay_rendering_enum == "Separate"
+				overlay_layout.label(text="Overlay image")
+				overlay_layout.prop(anim_entry, "image_for_picture_overlay")
+				overlay_layout.operator(ClonkPort.OT_PictureFilebrowser.bl_idname, text="", icon="FILE_FOLDER").load_overlay_image = True
+				picture_image_load_layout.label(text="Images are scaled to match the (override) resolution")
+
 
 			layout.separator(factor=0.1)
 
-			name_layout = layout.column(align=True)
-			name_layout.prop(anim_entry, "use_alternative_name")
-			if anim_entry.use_alternative_name:
-				action_data_layout2 = name_layout.row(align=True)
-				action_data_layout2.prop(anim_entry, "alternative_name", text="Name")
+			if anim_entry.render_type_enum == "Spriteanimation":
+				name_layout = layout.column(align=True)
+				name_layout.prop(anim_entry, "use_alternative_name")
+				if anim_entry.use_alternative_name:
+					action_data_layout2 = name_layout.row(align=True)
+					action_data_layout2.prop(anim_entry, "alternative_name", text="Name")
 
-			layout.separator(factor=0.1)
+				layout.separator(factor=0.1)
 
 			action_data_layout3 = layout.column(align=True)
 			action_data_layout3.prop(anim_entry, "override_resolution")
@@ -436,30 +453,37 @@ class ACTIONSETTINGS_PT_SubPanel(bpy.types.Panel):
 
 			layout.separator(factor=0.1)
 
-			camera_shift_layout = layout.column(align=True)
+			additional_settings_layout = layout.column()
+			if anim_entry.render_type_enum == "Picture":
+				additional_settings_layout.enabled = anim_entry.image_for_picture_combined == None
+
+			camera_shift_layout = additional_settings_layout.column(align=True)
 			camera_shift_layout.prop(anim_entry, "override_camera_shift")
 			if anim_entry.override_camera_shift:
 				camera_shift_layout2 = camera_shift_layout.row(align=True)
 				camera_shift_layout2.prop(anim_entry, "camera_shift_x")
 				camera_shift_layout2.prop(anim_entry, "camera_shift_y")
 
-				camera_shift_layout.prop(anim_entry, "camera_shift_changes_facet_offset")
+				if anim_entry.render_type_enum == "Spriteanimation":
+					camera_shift_layout.prop(anim_entry, "camera_shift_changes_facet_offset")
 				
 
-			layout.separator(factor=0.1)
+			if anim_entry.render_type_enum == "Spriteanimation":
+				additional_settings_layout.separator(factor=0.1)
 
-			facet_offset_layout = layout.column(align=True)
-			facet_offset_layout.prop(anim_entry, "override_facet_offset")
-			if anim_entry.override_facet_offset:
-				facet_offset_layout2 = facet_offset_layout.row(align=True)
-				facet_offset_layout2.prop(anim_entry, "facet_offset_x")
-				facet_offset_layout2.prop(anim_entry, "facet_offset_y")
-				if anim_entry.override_camera_shift == False and anim_entry.camera_shift_changes_facet_offset:
-					facet_offset_layout.label(text="The camera shift will be added to facet offset on export", icon="INFO")
+				facet_offset_layout = layout.column(align=True)
+				facet_offset_layout.prop(anim_entry, "override_facet_offset")
+				if anim_entry.override_facet_offset:
+					facet_offset_layout2 = facet_offset_layout.row(align=True)
+					facet_offset_layout2.prop(anim_entry, "facet_offset_x")
+					facet_offset_layout2.prop(anim_entry, "facet_offset_y")
+					if anim_entry.override_camera_shift == False and anim_entry.camera_shift_changes_facet_offset:
+						facet_offset_layout.label(text="The camera shift will be added to facet offset on export", icon="INFO")
 
-			layout.separator(factor=0.4)
+			additional_settings_layout.separator(factor=0.4)
 
-			override_cam_col = layout.column(align=True)
+
+			override_cam_col = additional_settings_layout.column(align=True)
 			override_cam_col.alignment = "LEFT"
 			override_camera_row = override_cam_col.row(align=True)
 			override_camera_row.label(text="Override camera", icon="OUTLINER_OB_CAMERA")
@@ -467,9 +491,9 @@ class ACTIONSETTINGS_PT_SubPanel(bpy.types.Panel):
 			if anim_entry.override_camera != None and anim_entry.override_camera.type != "CAMERA":
 				override_cam_col.label(text="Object is no camera!", icon="ERROR")
 				
-			layout.separator(factor=0.1)
+			additional_settings_layout.separator(factor=1.0)
 
-			additional_objects_layout = layout.column(align=True)
+			additional_objects_layout = additional_settings_layout.column(align=True)
 			additional_objects_layout.alignment = "LEFT"
 			
 			additional_objects_layout.label(text="Rendered additionally:", icon="TOOL_SETTINGS")
@@ -481,9 +505,9 @@ class ACTIONSETTINGS_PT_SubPanel(bpy.types.Panel):
 			else:
 				additional_objects_layout_row.prop(anim_entry, "additional_collection")	
 			
-			layout.separator(factor=0.3)
+			additional_settings_layout.separator(factor=1.0)
 
-			material_column = layout.column(align=True)
+			material_column = additional_settings_layout.column(align=True)
 			material_name_row = material_column.row(align=True)
 			material_name_row.alignment = "LEFT"
 			material_name_row.label(text="Material name")
@@ -495,10 +519,10 @@ class ACTIONSETTINGS_PT_SubPanel(bpy.types.Panel):
 			replace_material_row.label(text="Replace with  ")
 			replace_material_row.prop(anim_entry, "replace_material", text="")
 			
-			layout.separator(factor=0.2)
+			additional_settings_layout.separator(factor=1.0)
 
 			# Region Cropping
-			box_layout = layout.box()
+			box_layout = additional_settings_layout.box()
 			region_cropping_layout_col = box_layout.column(align=True)
 			if MetaData.is_using_cutout(anim_entry):
 				min_max_pixels, pixel_dimensions = MetaData.GetPixelFromCutout(anim_entry)
@@ -695,6 +719,7 @@ registered_classes = [
 	ClonkPort.OT_AnimFilebrowser,
 	ClonkPort.OT_ActListFilebrowser,
 	ClonkPort.OT_ActMapFilebrowser, 
+	ClonkPort.OT_PictureFilebrowser,
 	ACTION_UL_actionslots, 
 	Action_List_Button,
 	SpritesheetMaker.TIMER_OT,

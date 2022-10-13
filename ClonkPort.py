@@ -5,7 +5,7 @@
 # Robin Hohnsbeen (Ryou)
 
 import bpy
-from bpy.props import StringProperty, BoolProperty
+from bpy.props import StringProperty, BoolProperty, IntProperty
 
 import math
 import glob # for wildcard directory search
@@ -331,6 +331,48 @@ class OT_AnimFilebrowser(bpy.types.Operator, ImportHelper):
 
 		else:
 			print(self.filepath + " is no Animation!")
+
+		context.scene.lastfilepath = self.filepath
+		return {'FINISHED'}
+
+class OT_PictureFilebrowser(bpy.types.Operator, ImportHelper):
+	bl_idname = "picture.open_filebrowser"
+	bl_label = "Load image"
+
+	filter_glob: StringProperty(default="*.png")
+	
+	load_overlay_image: BoolProperty(name="Image To Load", default=False, description="")
+	
+
+	def execute(self, context):
+		parent_path = Path(self.filepath).parents[1]
+
+		print(self.filepath)
+
+		extension = Path(self.filepath).suffix
+		if extension == ".png":
+			global AddonDir
+			try:
+				scene = bpy.context.scene
+				loaded_image = bpy.data.images.load(self.filepath)
+				anim_entry = scene.animlist[scene.action_meta_data_index]
+
+				if self.load_overlay_image:
+					anim_entry.image_for_picture_overlay = loaded_image
+				else:
+					anim_entry.image_for_picture_combined = loaded_image
+
+				for region in context.area.regions:
+					if region.type == "UI":
+						region.tag_redraw()
+				
+
+			except BaseException as Err:
+				self.report({"ERROR"}, f"{Err}")
+				return {"CANCELLED"}
+		else:
+			self.report({"ERROR"}, f"{self.filepath} is no png!")
+			return {"CANCELLED"}
 
 		context.scene.lastfilepath = self.filepath
 		return {'FINISHED'}

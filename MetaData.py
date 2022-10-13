@@ -35,6 +35,8 @@ class ActionMetaData(bpy.types.PropertyGroup):
 			("Picture", "Picture", "Render one frame and put it where it fits. This is useful for title images.", 1)}, 
 		default="Spriteanimation", options={"HIDDEN"}, name=''
 		)
+	image_for_picture_combined : bpy.props.PointerProperty(type=bpy.types.Image, name='', description="Use an image for the title picture directly and omit rendering. This image will be used for the combined or the graphics sprite sheet")
+	image_for_picture_overlay : bpy.props.PointerProperty(type=bpy.types.Image, name='', description="Use an image for the title picture directly and omit rendering. This image will be used for the overlay sprite sheet")
 	additional_object_enum : bpy.props.EnumProperty(
 		items={("1_Object", "Object", "Render one object", 1), ("2_Collection", "Collection", "Render whole collection", 2)}, 
 		default="1_Object", options={"HIDDEN"}, name=''
