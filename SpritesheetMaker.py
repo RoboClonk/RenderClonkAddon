@@ -319,6 +319,15 @@ def ReplaceOverlayMaterials(materials_to_replace, replace_overlay=True):
 			else:
 				material_info["owner"].material_slots[material_index].material = material_info["original_material"]
 
+def ReplaceFillMaterials(materials_to_replace):
+	fill_material = bpy.context.scene.spritesheet_settings.fill_material
+
+	for material_info in materials_to_replace:
+		material_index = material_info["material_index"]
+		
+		if material_info["is_overlay"]:
+			material_info["owner"].material_slots[material_index].material = fill_material
+
 def ReplaceMaterialWithName(materials_to_replace, search_name, replacement_material):
 	for material_info in materials_to_replace:
 		material_index = material_info["material_index"]
@@ -500,6 +509,8 @@ class TIMER_OT(bpy.types.Operator):
 
 			if self.replace_overlay_material == True:
 				current_sheet_number = 2
+		else:
+			ReplaceFillMaterials(self.replacement_materials)
 		
 		self.render_state = 0
 		self.current_action_index = 0
@@ -681,7 +692,7 @@ class TIMER_OT(bpy.types.Operator):
 			if current_action.find_material_name != "" and current_action.replace_material != None:
 				ResetMaterialReplacementByName(self.replacement_materials, current_action.find_material_name, current_action.replace_material)
 				
-		if self.set_overlay_material and len(self.replacement_materials) > 0:
+		if len(self.replacement_materials) > 0:
 			ResetOverlayMaterials(self.replacement_materials)
 
 		if self.output_image:

@@ -477,7 +477,7 @@ class ACTIONSETTINGS_PT_SubPanel(bpy.types.Panel):
 					facet_offset_layout2 = facet_offset_layout.row(align=True)
 					facet_offset_layout2.prop(anim_entry, "facet_offset_x")
 					facet_offset_layout2.prop(anim_entry, "facet_offset_y")
-					if anim_entry.override_camera_shift == False and anim_entry.camera_shift_changes_facet_offset:
+					if anim_entry.override_camera_shift and anim_entry.camera_shift_changes_facet_offset:
 						facet_offset_layout.label(text="The camera shift will be added to facet offset on export", icon="INFO")
 
 			additional_settings_layout.separator(factor=0.4)
