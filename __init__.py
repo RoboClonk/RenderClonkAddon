@@ -437,7 +437,7 @@ class ACTIONSETTINGS_PT_SubPanel(bpy.types.Panel):
 			if (anim_entry.override_resolution 
 			and (anim_entry.width != scene.render.resolution_x or anim_entry.height != scene.render.resolution_y or SpritesheetMaker.preview_active)
 			and anim_entry.render_type_enum == "Spriteanimation"):
-				x_offset, y_offset = MetaData.get_automatic_face_offset(scene, anim_entry)
+				x_offset, y_offset = MetaData.get_automatic_face_offset(scene, anim_entry, False)
 				shift_offset = anim_entry.override_camera_shift and anim_entry.camera_shift_changes_facet_offset
 				
 				x_addition = f" shift {anim_entry.camera_shift_x}" if shift_offset else ""
@@ -565,17 +565,9 @@ class SPRITESHEET_PT_Panel(bpy.types.Panel):
 		layout = self.layout
 		scene = context.scene
 
-		additional_settings_layout = layout.column(align=True)
-		additional_settings_layout.alignment = "LEFT"
-		additional_settings_layout.prop(scene.spritesheet_settings, "overlay_rendering_enum")
-		if scene.spritesheet_settings.overlay_rendering_enum == "Separate":
-			additional_settings_layout.label(text="Renders the spritesheet twice.", icon="INFO")
+		render_button_col = layout.column(align=True)
 
-		layout.separator()
-
-		col = layout.column(align=True)
-
-		render_button = col.column()
+		render_button = render_button_col.box()
 		render_button.enabled = len(bpy.context.scene.animlist) > 0
 		render_button_text = "Render Spritesheet"
 		if context.scene.is_rendering_spritesheet:
@@ -584,50 +576,71 @@ class SPRITESHEET_PT_Panel(bpy.types.Panel):
 		render_button.operator(Menu_Button.bl_idname, text=render_button_text, icon="RENDER_RESULT").menu_active = 5
 		
 		if context.scene.is_rendering_spritesheet:
-			progress_layout = col.row()
+			progress_layout = render_button.row()
 			progress_layout.prop(bpy.context.scene, "spritesheet_render_progress", text="Render Progress")
 			progress_layout.label(text="Sheet " + str(SpritesheetMaker.current_sheet_number) + "/" + str(SpritesheetMaker.current_max_sheets) + " " + SpritesheetMaker.current_action_name)
 			layout.separator()
-		else:
-			col.prop(scene.render, "resolution_x")
-			col.prop(scene.render, "resolution_y")
 
-			if scene.scene_render_resolution != str(scene.render.resolution_percentage)+"%":
-				col.label(text="Custom resolution percentage used: %d%s" % (scene.render.resolution_percentage, "%"), icon="ERROR")
-				col.label(text="It is recommended to use the dropdown")
-			
-			res_percentage_layout = col.row(align=True)
-			res_percentage_layout.label(text="Resolution Percentage:")
-			res_percentage_layout.prop(scene, "scene_render_resolution")
+		actmapdefcore_layout = layout.row()
+		actmapdefcore_layout.enabled = context.scene.is_rendering_spritesheet == False
+
+		if ClonkPort.DoesActmapExist():
+			actmapdefcore_layout.operator(Menu_Button.bl_idname, text="Update ActMap.txt", icon="FILE_TEXT").menu_active = 10
+		else:
+			actmapdefcore_layout.operator(Menu_Button.bl_idname, text="Save ActMap.txt", icon="FILE_TEXT").menu_active = 10
+
+		if ClonkPort.DoesDefCoreExist():
+			actmapdefcore_layout.operator(Menu_Button.bl_idname, text="Update DefCore.txt", icon="FILE_TEXT").menu_active = 11
+		else:
+			actmapdefcore_layout.operator(Menu_Button.bl_idname, text="Save DefCore.txt", icon="FILE_TEXT").menu_active = 11
+
+		spritesheetsettings_layout = layout.box()
+		spritesheetsettings_layout.enabled = context.scene.is_rendering_spritesheet == False
+		spritesheetsettings_layout.label(text="Sprite sheet settings:")
+
+		col = spritesheetsettings_layout.column(align=True)
 		
-		layout.separator()
+		col.prop(scene.render, "resolution_x")
+		col.prop(scene.render, "resolution_y")
+
+		if scene.scene_render_resolution != str(scene.render.resolution_percentage)+"%":
+			col.label(text="Custom resolution percentage used: %d%s" % (scene.render.resolution_percentage, "%"), icon="ERROR")
+			col.label(text="It is recommended to use the dropdown")
+		
+		res_percentage_layout = col.row(align=True)
+		res_percentage_layout.label(text="Resolution Percentage:")
+		res_percentage_layout.prop(scene, "scene_render_resolution")
 
 		x_resolution = math.floor(scene.render.resolution_x * scene.render.resolution_percentage/100)
 		y_resolution = math.floor(scene.render.resolution_y * scene.render.resolution_percentage/100)
 		col.label(text="Output Resolution Per Sprite   x: " + str(x_resolution) + " px   y: " + str(y_resolution) + " px")
-		
-		if bpy.context.scene.custom_output_dir != "":
-			layout.label(text="Individual sprites will be saved at: " + PathUtilities.GetOutputPath(), icon="INFO")
-		else:
-			layout.label(text="Output path: " + PathUtilities.GetOutputPath())
-		
-		custom_output_layout = layout.column(align=True)
+
+		additional_settings_layout = spritesheetsettings_layout.column(align=True)
+		additional_settings_layout.alignment = "LEFT"
+		rendering_enum_layout = additional_settings_layout.row(align=True)
+		rendering_enum_layout.label(text="Overlay render setting:")
+		rendering_enum_layout.prop(scene.spritesheet_settings, "overlay_rendering_enum", text="")
+		if scene.spritesheet_settings.overlay_rendering_enum == "Separate":
+			additional_settings_layout.label(text="Renders the spritesheet twice.", icon="INFO")
+
+		name_suffix_layout = spritesheetsettings_layout.row(align=True)
+		name_suffix_layout.label(text="Sprite sheet name suffix:")
+		name_suffix_layout.prop(bpy.context.scene.spritesheet_settings, "spritesheet_suffix", text="")
+
+		custom_output_layout = spritesheetsettings_layout.column(align=True)
 		custom_output_layout.label(text="Custom output directory:")
 		custom_output_layout.prop(bpy.context.scene, "custom_output_dir", text="")
-
-		layout.separator()
 		
-		if ClonkPort.DoesActmapExist():
-			layout.operator(Menu_Button.bl_idname, text="Update ActMap.txt", icon="FILE_TEXT").menu_active = 10
+		if bpy.context.scene.custom_output_dir != "":
+			label_layout = spritesheetsettings_layout.column(align=True)
+			label_layout.label(text="Individual sprites will be saved at: ", icon="INFO")
+			label_layout.label(text=f"\"{PathUtilities.GetOutputPath()}\"")
 		else:
-			layout.operator(Menu_Button.bl_idname, text="Save ActMap.txt", icon="FILE_TEXT").menu_active = 10
-
-		if ClonkPort.DoesDefCoreExist():
-			layout.operator(Menu_Button.bl_idname, text="Update DefCore.txt", icon="FILE_TEXT").menu_active = 11
-		else:
-			layout.operator(Menu_Button.bl_idname, text="Save DefCore.txt", icon="FILE_TEXT").menu_active = 11
-
-		layout.separator(factor=3.0)
+			spritesheetsettings_layout.label(text="Output path: " + PathUtilities.GetOutputPath())
+		
+		spritesheetsettings_layout.separator()
+		
+		layout.separator(factor=1.0)
 
 		pcoll = preview_collections["main"]
 		clonk_icon = pcoll["clonk_icon"]

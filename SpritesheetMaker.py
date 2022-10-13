@@ -470,7 +470,8 @@ class TIMER_OT(bpy.types.Operator):
 		self.has_render_finished = True
 		self.sheet_width, self.sheet_height, self.sprite_strips = GetSpritesheetInfo(self.action_entries)
 		self.output_image_data = np.zeros((self.sheet_height, self.sheet_width, 4), 'f')
-		self.output_image = bpy.data.images.new(self.output_image_name, width=self.sheet_width, height=self.sheet_height)
+		full_output_name = self.output_image_name + bpy.context.scene.spritesheet_settings.spritesheet_suffix
+		self.output_image = bpy.data.images.new(full_output_name, width=self.sheet_width, height=self.sheet_height)
 		print("Spritesheetdimensions: " + str(self.sheet_width) + "x" + str(self.sheet_height))
 
 		self.replacement_materials = GetMaterialsToReplace()
@@ -487,7 +488,8 @@ class TIMER_OT(bpy.types.Operator):
 		else:
 			self.output_directorypath = os.path.join(self.output_directorypath, "spritesheets")
 
-		image_output_path = os.path.join(self.output_directorypath, self.output_image_name + ".png")
+		full_output_name = self.output_image_name + bpy.context.scene.spritesheet_settings.spritesheet_suffix
+		image_output_path = os.path.join(self.output_directorypath, full_output_name + ".png")
 		print("Output" + image_output_path)
 		if os.path.exists(image_output_path):
 			if PathUtilities.CanReadFile(image_output_path) == False or PathUtilities.CanWriteFile(image_output_path) == False:
@@ -593,7 +595,11 @@ class TIMER_OT(bpy.types.Operator):
 				rendered_sprite_image = GetImageForPicture(current_action, sprite_width, sprite_height)
 
 				if rendered_sprite_image == None:
-					output_filepath = os.path.join(PathUtilities.GetOutputPath(), "sprites", MetaData.GetActionName(current_action) + "_" + str(bpy.context.scene.frame_current))
+					global current_sheet_number
+					suffix = f"_{bpy.context.scene.spritesheet_settings.spritesheet_suffix}"
+					graphicsoverlay = "g" if current_sheet_number == 1 else "o"
+					sprite_name = f"{MetaData.GetActionName(current_action)}_f{bpy.context.scene.frame_current}{suffix}_{graphicsoverlay}"
+					output_filepath = os.path.join(PathUtilities.GetOutputPath(), "sprites", sprite_name)
 					
 					bpy.context.scene.render.filepath = output_filepath
 					bpy.ops.render.render(write_still=True)
@@ -657,7 +663,8 @@ class TIMER_OT(bpy.types.Operator):
 				self.output_image.pixels.foreach_set(self.output_image_data.ravel())
 				self.output_image.update()
 				
-				output_file = os.path.join(self.output_directorypath, self.output_image_name + ".png")
+				full_output_name = self.output_image_name + bpy.context.scene.spritesheet_settings.spritesheet_suffix
+				output_file = os.path.join(self.output_directorypath, full_output_name + ".png")
 				print("Output at: " + output_file)
 				self.output_image.save_render(output_file)
 				
@@ -666,7 +673,7 @@ class TIMER_OT(bpy.types.Operator):
 				if self.set_overlay_material == True and self.replace_overlay_material == False:
 					bpy.ops.timer.progress(output_image_name="Overlay", set_overlay_material=True, replace_overlay_material=True)
 
-				self.report({"INFO"}, "Finished rendering: %s" % (self.output_image_name))
+				self.report({"INFO"}, "Finished rendering: %s" % (full_output_name))
 				return {'FINISHED'}
 
 		

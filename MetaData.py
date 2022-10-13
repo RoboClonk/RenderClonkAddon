@@ -76,12 +76,13 @@ class ActionMetaData(bpy.types.PropertyGroup):
 class SpriteSheetMetaData(bpy.types.PropertyGroup):
 	overlay_rendering_enum : bpy.props.EnumProperty(
 		items={
-			("Separate", "Separate", "Graphics and Overlay rendered separately. Materials with \"Overlay\" in their name will be replaced with the overlay material.", 0), 
-			("Combined", "Combined", "Graphics and Overlay in one image", 1)}, 
+			("Separate", "Separate", "Graphics and Overlay rendered separately. Materials with \"Overlay\" in their name will be replaced with the overlay material", 0), 
+			("Combined", "Combined", "Graphics and Overlay in one image. (Materials with \"Overlay\" in their name will be replaced with a blue fill material)", 1)}, 
 		default="Separate", options={"HIDDEN"}, name='Overlay Render Setting'
 		)
 	overlay_material : bpy.props.PointerProperty(type=bpy.types.Material, name='Overlay Material', description="Materials with \"Overlay\" in its name will be replaced with this material upon render")
 	fill_material : bpy.props.PointerProperty(type=bpy.types.Material, name='Fill Material', description="Materials with \"Overlay\" in its name will be replaced with this material upon render")
+	spritesheet_suffix : bpy.props.StringProperty(name='Spritesheet name suffix', maxlen=32, description="A text that will be added at the end of the output file")
 
 def MakeRectCutoutPixelPerfect(action_entry : ActionMetaData):
 	scene = bpy.context.scene
@@ -98,11 +99,15 @@ def MakeRectCutoutPixelPerfect(action_entry : ActionMetaData):
 
 	return action_entry
 
-def get_automatic_face_offset(scene, anim_entry):
+def get_automatic_face_offset(scene, anim_entry, do_round=True):
 	x_offset = -(anim_entry.width - scene.render.resolution_x) / 2.0
 	y_offset = -(anim_entry.height - scene.render.resolution_y) / 2.0
 
-	return round(x_offset), round(y_offset)
+	if do_round:
+		return round(x_offset), round(y_offset)
+	else:
+		return round(x_offset, 2), round(y_offset, 2)
+
 
 def get_res_multiplier():
 	return bpy.context.scene.render.resolution_percentage / 100.0
