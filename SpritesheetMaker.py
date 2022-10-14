@@ -286,8 +286,13 @@ def GetMaterialsToReplace():
 		for material_index, material_slot in enumerate(object.material_slots):
 			if material_slot.material == None:
 				continue
+
+			material_name = material_slot.material.name.lower()
+
+			if "fix" in material_name or "ignore" in material_name:
+				continue
 			
-			is_overlay = "overlay" in material_slot.material.name.lower()
+			is_overlay = "overlay" in material_name
 			
 			material_info = {
 				"owner" : object,
