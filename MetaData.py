@@ -8,6 +8,11 @@ import bpy
 import math
 
 class ActionMetaData(bpy.types.PropertyGroup):
+	is_used : bpy.props.BoolProperty(
+		name='Enabled', 
+		default=True, 
+		description="Determines if this action entry is currently in use. Can be useful if you want to keep an entry for later"
+	)
 	action : bpy.props.PointerProperty(type=bpy.types.Action, name='Action', description="The reference to the action that will be applied on the action target when rendering a spritesheet")
 	override_resolution : bpy.props.BoolProperty(
 		name='Override resolution', 
@@ -176,7 +181,11 @@ def GetValidActionEntries():
 	valid_action_entries = []
 	for action_index, action_entry in enumerate(bpy.context.scene.animlist):
 		if action_entry.action == None:
-			print("Action " + str(action_index) + " omitted, because no blender action was referenced.")
+			print(f"Action {action_index} omitted, because no blender action was referenced.")
+			continue
+
+		if action_entry.is_used == False:
+			print(f"Action {action_index} omitted, because it was disabled.")
 			continue
 
 		valid_action_entries.append(action_entry)

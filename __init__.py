@@ -382,12 +382,19 @@ class ACTIONSETTINGS_PT_SubPanel(bpy.types.Panel):
 		
 		else:
 			anim_entry = scene.animlist[scene.action_meta_data_index]
+			
 			blender_action_layout = action_data_layout.row(align=True)
 			blender_action_layout.prop(anim_entry, "action")
 			if anim_entry.action == None:
 				blender_action_layout.operator("actionadd.settings_op", text="", icon="ADD")
 
 			layout.separator(factor=0.1)
+			layout.prop(anim_entry, "is_used")
+
+			if anim_entry.is_used == False:
+				layout.separator(factor=2.0)
+				return
+
 
 			picture_layout = layout.column(align=True)
 			render_type_icon = "ARMATURE_DATA"
@@ -418,14 +425,13 @@ class ACTIONSETTINGS_PT_SubPanel(bpy.types.Panel):
 
 			layout.separator(factor=0.1)
 
-			if anim_entry.render_type_enum == "Spriteanimation":
-				name_layout = layout.column(align=True)
-				name_layout.prop(anim_entry, "use_alternative_name")
-				if anim_entry.use_alternative_name:
-					action_data_layout2 = name_layout.row(align=True)
-					action_data_layout2.prop(anim_entry, "alternative_name", text="Name")
+			name_layout = layout.column(align=True)
+			name_layout.prop(anim_entry, "use_alternative_name")
+			if anim_entry.use_alternative_name:
+				action_data_layout2 = name_layout.row(align=True)
+				action_data_layout2.prop(anim_entry, "alternative_name", text="Name")
 
-				layout.separator(factor=0.1)
+			layout.separator(factor=0.1)
 
 			action_data_layout3 = layout.column(align=True)
 			action_data_layout3.prop(anim_entry, "override_resolution")
@@ -690,7 +696,10 @@ class ACTION_UL_actionslots(bpy.types.UIList):
 
 			if item.action == None:
 				action_name = "--no action selected--"
-				entry_layout.label(text=str(index) + ":   " + action_name, icon="ERROR")
+				entry_layout.label(text=f"{index}:   {action_name}", icon="ERROR")
+			elif item.is_used == False:
+				action_name = item.alternative_name if item.use_alternative_name else item.action.name
+				entry_layout.label(text=f"{index} --{action_name} disabled--", icon="PANEL_CLOSE")
 			else:
 				icon_name = "ARMATURE_DATA"
 				if item.render_type_enum == "Picture":
