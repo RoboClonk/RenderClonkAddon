@@ -250,6 +250,8 @@ def import_mesh(path, insert_collection=None):
 					tex = bpy.data.textures.find(values[0])
 					if tex is None:
 						tex = bpy.data.textures.new(values[0])
+					else:
+						mode = mesh_import_state.EMPTY
 
 				if param_name == "Image":
 					current_material = bpy.data.materials.get(current_mat_name)
