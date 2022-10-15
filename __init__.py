@@ -162,6 +162,10 @@ class Menu_Button(bpy.types.Operator):
 		if self.menu_active == 8:
 			bpy.ops.preview.action()
 
+		# Preview next Action
+		if self.menu_active == 14:
+			bpy.ops.preview.action(preview_next=True)
+
 		if self.menu_active == 9:
 			bpy.ops.screen.animation_cancel()
 
@@ -306,9 +310,12 @@ class ACTION_PT_LayoutPanel(bpy.types.Panel):
 		anim_entry = scene.animlist[scene.action_meta_data_index]
 		preview_button_layout.enabled = (scene.anim_target != None and anim_entry.action != None)
 		if SpritesheetMaker.preview_active:
-			preview_button_layout.operator(Menu_Button.bl_idname, text="Playing..", icon="PAUSE").menu_active = 8
+			preview_button_layout.operator(Menu_Button.bl_idname, text="Playing.. (Press Escape to cancel)", icon="PAUSE").menu_active = 8
 		else:
-			preview_button_layout.operator(Menu_Button.bl_idname, text="Preview Action", icon="PLAY").menu_active = 8
+			preview_row = preview_button_layout.row()
+			preview_row.operator(Menu_Button.bl_idname, text="Preview Action", icon="PLAY").menu_active = 8
+			if bpy.context.scene.action_meta_data_index < len(bpy.context.scene.animlist)-1:
+				preview_row.operator(Menu_Button.bl_idname, text="Preview next", icon="FRAME_NEXT").menu_active = 14
 
 
 class ACTIONSADD_OPERATOR_Button(bpy.types.Operator):
@@ -447,7 +454,7 @@ class ACTIONSETTINGS_PT_SubPanel(bpy.types.Panel):
 				shift_offset = anim_entry.override_camera_shift and anim_entry.camera_shift_changes_facet_offset
 				
 				x_addition = f" shift {anim_entry.camera_shift_x}" if shift_offset else ""
-				y_addition = f" shift {-anim_entry.camera_shift_y}" if shift_offset else ""
+				y_addition = f" shift {anim_entry.camera_shift_y}" if shift_offset else ""
 
 				facet_offset_text = f"Automatic facet offset x:{x_offset}{x_addition}, y:{y_offset}{y_addition}"
 				if anim_entry.override_facet_offset:
@@ -458,8 +465,8 @@ class ACTIONSETTINGS_PT_SubPanel(bpy.types.Panel):
 				action_data_layout3.label(text=f"Automatic orthographic scale: {round(SpritesheetMaker.GetOrthoScale(anim_entry), 2)}")
 
 			layout.separator(factor=0.1)
-
 			additional_settings_layout = layout.column()
+
 			if anim_entry.render_type_enum == "Picture":
 				additional_settings_layout.enabled = anim_entry.image_for_picture_combined == None
 
@@ -473,11 +480,11 @@ class ACTIONSETTINGS_PT_SubPanel(bpy.types.Panel):
 				if anim_entry.render_type_enum == "Spriteanimation":
 					camera_shift_layout.prop(anim_entry, "camera_shift_changes_facet_offset")
 				
+			additional_settings_layout.separator(factor=1.0)
 
 			if anim_entry.render_type_enum == "Spriteanimation":
-				additional_settings_layout.separator(factor=0.1)
 
-				facet_offset_layout = layout.column(align=True)
+				facet_offset_layout = additional_settings_layout.column(align=True)
 				facet_offset_layout.prop(anim_entry, "override_facet_offset")
 				if anim_entry.override_facet_offset:
 					facet_offset_layout2 = facet_offset_layout.row(align=True)
@@ -485,8 +492,8 @@ class ACTIONSETTINGS_PT_SubPanel(bpy.types.Panel):
 					facet_offset_layout2.prop(anim_entry, "facet_offset_y")
 					if anim_entry.override_camera_shift and anim_entry.camera_shift_changes_facet_offset:
 						facet_offset_layout.label(text="The camera shift will be added to facet offset on export", icon="INFO")
-
-			additional_settings_layout.separator(factor=0.4)
+				
+				additional_settings_layout.separator(factor=1.0)
 
 
 			override_cam_col = additional_settings_layout.column(align=True)

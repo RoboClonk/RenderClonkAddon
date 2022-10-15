@@ -266,7 +266,7 @@ def prepare_action(action_entry : MetaData.ActionMetaData):
 
 	if action_entry.override_camera_shift:
 		bpy.context.scene.camera.data.shift_x = 1.0/x_dim * action_entry.camera_shift_x
-		bpy.context.scene.camera.data.shift_y = 1.0/y_dim * action_entry.camera_shift_y
+		bpy.context.scene.camera.data.shift_y = 1.0/y_dim * -action_entry.camera_shift_y
 	
 
 def get_current_render_dimensions(action_entry):
@@ -724,6 +724,9 @@ class PREVIEW_OT(bpy.types.Operator):
 
 	_timer = None
 
+	preview_next : bpy.props.BoolProperty("Preview next action", default=False)
+	preview_last = False
+
 	materials_to_replace = []
 	search_name = ""
 	replacement_material = None
@@ -744,6 +747,11 @@ class PREVIEW_OT(bpy.types.Operator):
 	current_action_entry = None
 
 	def prepare_preview(self):
+		if self.preview_next:
+			bpy.context.scene.action_meta_data_index = min(bpy.context.scene.action_meta_data_index + 1, len(bpy.context.scene.animlist)-1)
+		if self.preview_last:
+			bpy.context.scene.action_meta_data_index = max(bpy.context.scene.action_meta_data_index - 1, 0)
+			
 		action_entry = bpy.context.scene.animlist[bpy.context.scene.action_meta_data_index]
 
 		self.framestart = bpy.context.scene.frame_start
@@ -771,6 +779,8 @@ class PREVIEW_OT(bpy.types.Operator):
 		global preview_active
 		preview_active = True
 		self.current_action_entry = action_entry
+		self.preview_next = False
+		self.preview_last = False
 
 	def execute(self, context):
 		context.window_manager.modal_handler_add(self)
@@ -810,17 +820,25 @@ class PREVIEW_OT(bpy.types.Operator):
 	def modal(self, context, event):
 		if event.type in {"LEFT_ARROW", "RIGHT_ARROW", "UP_ARROW", "DOWN_ARROW"} and event.value == "PRESS":
 			if event.shift:
+				if self.current_action_entry.override_camera_shift == False:
+					self.current_action_entry.camera_shift_x = 0
+					self.current_action_entry.camera_shift_y = 0
+					self.current_action_entry.override_camera_shift = True
+
 				if event.type in {"LEFT_ARROW"}:
 					self.current_action_entry.camera_shift_x += 1
 				if event.type in {"RIGHT_ARROW"}:
 					self.current_action_entry.camera_shift_x -= 1
 				if event.type in {"UP_ARROW"}:
-					self.current_action_entry.camera_shift_y -= 1
-				if event.type in {"DOWN_ARROW"}:
 					self.current_action_entry.camera_shift_y += 1
-
-				self.current_action_entry.override_camera_shift = True
+				if event.type in {"DOWN_ARROW"}:
+					self.current_action_entry.camera_shift_y -= 1
+				
 			else:
+				if self.current_action_entry.override_resolution == False:
+					self.current_action_entry.width = bpy.context.scene.render.resolution_x
+					self.current_action_entry.height = bpy.context.scene.render.resolution_y
+					self.current_action_entry.override_resolution = True
 
 				if event.type in {"LEFT_ARROW"}:
 					self.current_action_entry.width -= 1
@@ -831,15 +849,22 @@ class PREVIEW_OT(bpy.types.Operator):
 				if event.type in {"DOWN_ARROW"}:
 					self.current_action_entry.height -= 1
 
-				self.current_action_entry.override_resolution = True
 				
-
 			bpy.context.scene.camera.data.show_passepartout = True
 			bpy.context.scene.camera.data.passepartout_alpha = 0.6
 
 			self.reset()
 			self.prepare_preview()
 
+		if event.type in {"PAGE_DOWN"} and event.value == "PRESS":
+			self.reset()
+			self.preview_next = True
+			self.prepare_preview()
+
+		if event.type in {"PAGE_UP"} and event.value == "PRESS":
+			self.reset()
+			self.preview_last = True
+			self.prepare_preview()
 			
 
 

@@ -542,7 +542,7 @@ def PrintActmap(path, remove_unused_sections=False):
 		camera_shift_y = 0
 		if reference_action_entry.override_camera_shift and reference_action_entry.camera_shift_changes_facet_offset:
 			camera_shift_x = reference_action_entry.camera_shift_x
-			camera_shift_y = -reference_action_entry.camera_shift_y
+			camera_shift_y = reference_action_entry.camera_shift_y
 
 		if reference_action_entry.invert_region_cropping == False and MetaData.is_using_cutout(reference_action_entry):
 			min_max_pixels, pixel_dimensions = MetaData.GetPixelFromCutout(reference_action_entry)
