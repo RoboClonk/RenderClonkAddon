@@ -18,6 +18,7 @@ from . import PathUtilities
 current_action_name = ""
 current_sheet_number = 1
 current_max_sheets = 1
+current_rerender_state = ""
 
 def get_res_multiplier():
 	return bpy.context.scene.render.resolution_percentage / 100.0
@@ -608,15 +609,30 @@ class TIMER_OT(bpy.types.Operator):
 
 				if rendered_sprite_image == None:
 					global current_sheet_number
-					suffix = f"_{bpy.context.scene.spritesheet_settings.spritesheet_suffix}"
+					settings = bpy.context.scene.spritesheet_settings
+					suffix = f"_{settings.spritesheet_suffix}" if settings.spritesheet_suffix != "" else ""
 					graphicsoverlay = "g" if current_sheet_number == 1 else "o"
-					sprite_name = f"{MetaData.GetActionName(current_action)}_f{bpy.context.scene.frame_current}{suffix}_{graphicsoverlay}"
+					if current_sheet_number == 1 and settings.overlay_rendering_enum == "Combined" and settings.add_suffix_for_combined:
+						graphicsoverlay = "c"
+					action_name = MetaData.GetActionName(current_action)
+					sprite_name = f"{action_name}_f{bpy.context.scene.frame_current}{suffix}_{graphicsoverlay}"
 					output_filepath = os.path.join(PathUtilities.GetOutputPath(), "sprites", sprite_name)
 					
 					bpy.context.scene.render.filepath = output_filepath
-					bpy.ops.render.render(write_still=True)
+					global current_rerender_state
+					should_render = True
+					print(f"{current_rerender_state}_{action_name}")
+					if os.path.exists(output_filepath + ".png") and current_rerender_state != "" and current_rerender_state != action_name:
+						should_render = False
+						rendered_sprite_image = bpy.data.images.load(output_filepath + ".png")
+						# Check if the size is correct, if not, rerender.
+						if rendered_sprite_image.size[0] != sprite_width or rendered_sprite_image.size[1] != sprite_height:
+							bpy.data.images.remove(rendered_sprite_image)
+							should_render = True
 					
-					rendered_sprite_image = bpy.data.images.load(output_filepath + ".png")
+					if should_render:
+						bpy.ops.render.render(write_still=True)
+						rendered_sprite_image = bpy.data.images.load(output_filepath + ".png")
 				
 				# Allocate a numpy array to manipulate pixel data.
 				sprite_pixel_data = np.zeros((sprite_height, sprite_width, 4), 'f')
@@ -675,7 +691,10 @@ class TIMER_OT(bpy.types.Operator):
 				self.output_image.pixels.foreach_set(self.output_image_data.ravel())
 				self.output_image.update()
 				
-				full_output_name = self.output_image_name + bpy.context.scene.spritesheet_settings.spritesheet_suffix
+				spritesheet_settings = bpy.context.scene.spritesheet_settings
+				full_output_name = self.output_image_name + spritesheet_settings.spritesheet_suffix
+				if spritesheet_settings.overlay_rendering_enum == "Combined" and spritesheet_settings.add_suffix_for_combined:
+					full_output_name += "_Combined"
 				output_file = os.path.join(self.output_directorypath, full_output_name + ".png")
 				print("Output at: " + output_file)
 				self.output_image.save_render(output_file)

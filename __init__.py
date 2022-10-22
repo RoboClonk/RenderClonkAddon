@@ -131,7 +131,17 @@ class Menu_Button(bpy.types.Operator):
 		if self.menu_active == 4:
 			ClonkPort.AppendRenderClonkSetup(AddonDirectory)
 
-		if self.menu_active == 5:
+		if self.menu_active == 5 or self.menu_active == 15 or self.menu_active == 16:
+			if self.menu_active == 15:
+				SpritesheetMaker.current_rerender_state = MetaData.GetActionNameFromIndex(bpy.context.scene.action_meta_data_index)
+				if SpritesheetMaker.current_rerender_state != "":
+					bpy.context.scene.animlist[bpy.context.scene.action_meta_data_index].is_used = True
+			else:
+				SpritesheetMaker.current_rerender_state = ""
+			
+			if self.menu_active == 16:
+				SpritesheetMaker.current_rerender_state = "RepackSpriteSheet"
+
 			bpy.ops.screen.animation_cancel()
 			
 			Overlay, Holdout, Fill = ClonkPort.GetOrAppendOverlayMaterials()
@@ -323,16 +333,14 @@ class ACTION_PT_LayoutPanel(bpy.types.Panel):
 		anim_entry = scene.animlist[scene.action_meta_data_index]
 		preview_button_layout.enabled = (scene.anim_target != None and anim_entry.action != None)
 		if SpritesheetMaker.preview_active:
-			preview_button_layout.operator(Menu_Button.bl_idname, text="Playing.. (Press Escape to cancel)", icon="PAUSE").menu_active = 8
+			preview_button_layout.operator(Menu_Button.bl_idname, text="Playing.. (Press escape to cancel)", icon="PAUSE").menu_active = 8
 			shortcuthint_layout = layout.column(align=True)
 			shortcuthint_layout.label(text="Page Up | Page Down: Previous / next action")
 			shortcuthint_layout.label(text="arrow keys: adjust override resolution")
 			shortcuthint_layout.label(text="shift + arrow keys: adjust camera shift")
 		else:
 			preview_row = preview_button_layout.row()
-			preview_row.operator(Menu_Button.bl_idname, text="Preview Action", icon="PLAY").menu_active = 8
-			if bpy.context.scene.action_meta_data_index < len(bpy.context.scene.animlist)-1:
-				preview_row.operator(Menu_Button.bl_idname, text="Preview next", icon="FRAME_NEXT").menu_active = 14
+			preview_row.operator(Menu_Button.bl_idname, text="Preview action", icon="PLAY").menu_active = 8
 
 
 class ACTIONSADD_OPERATOR_Button(bpy.types.Operator):
@@ -599,17 +607,26 @@ class SPRITESHEET_PT_Panel(bpy.types.Panel):
 
 		render_button = render_button_col.box()
 		render_button.enabled = len(bpy.context.scene.animlist) > 0
-		render_button_text = "Render Spritesheet"
+		render_button_text = "Render spritesheet"
 		if context.scene.is_rendering_spritesheet:
-			render_button_text = "Rendering.. (Press Escape to cancel)"
+			render_button_text = "Rendering.. (Press escape to cancel)"
 
 		render_button.operator(Menu_Button.bl_idname, text=render_button_text, icon="RENDER_RESULT").menu_active = 5
+		if context.scene.is_rendering_spritesheet == False:
+			selected_action_name = MetaData.GetActionNameFromIndex(bpy.context.scene.action_meta_data_index)
+			if selected_action_name != "":
+				render_button.operator(Menu_Button.bl_idname, text=f"Re-render \"{selected_action_name}\"", icon="IMAGE_DATA").menu_active = 15
+			
+			render_button.operator(Menu_Button.bl_idname, text=f"Render missing sprites and repack", icon="MOD_BUILD").menu_active = 16
+			
 		
 		if context.scene.is_rendering_spritesheet:
 			progress_layout = render_button.row()
 			progress_layout.prop(bpy.context.scene, "spritesheet_render_progress", text="Render Progress")
 			progress_layout.label(text="Sheet " + str(SpritesheetMaker.current_sheet_number) + "/" + str(SpritesheetMaker.current_max_sheets) + " " + SpritesheetMaker.current_action_name)
 			layout.separator()
+
+		layout.separator(factor=0.2)
 
 		actmapdefcore_layout = layout.row()
 		actmapdefcore_layout.enabled = context.scene.is_rendering_spritesheet == False
@@ -623,6 +640,9 @@ class SPRITESHEET_PT_Panel(bpy.types.Panel):
 			actmapdefcore_layout.operator(Menu_Button.bl_idname, text="Update DefCore.txt", icon="FILE_TEXT").menu_active = 11
 		else:
 			actmapdefcore_layout.operator(Menu_Button.bl_idname, text="Save DefCore.txt", icon="FILE_TEXT").menu_active = 11
+
+		layout.separator(factor=0.2)
+
 
 		spritesheetsettings_layout = layout.box()
 		spritesheetsettings_layout.enabled = context.scene.is_rendering_spritesheet == False
@@ -638,12 +658,12 @@ class SPRITESHEET_PT_Panel(bpy.types.Panel):
 			col.label(text="It is recommended to use the dropdown")
 		
 		res_percentage_layout = col.row(align=True)
-		res_percentage_layout.label(text="Resolution Percentage:")
+		res_percentage_layout.label(text="Resolution percentage:")
 		res_percentage_layout.prop(scene, "scene_render_resolution")
 
 		x_resolution = math.floor(scene.render.resolution_x * scene.render.resolution_percentage/100)
 		y_resolution = math.floor(scene.render.resolution_y * scene.render.resolution_percentage/100)
-		col.label(text="Output Resolution Per Sprite   x: " + str(x_resolution) + " px   y: " + str(y_resolution) + " px")
+		col.label(text="Output resolution per sprite   x: " + str(x_resolution) + " px   y: " + str(y_resolution) + " px")
 
 		additional_settings_layout = spritesheetsettings_layout.column(align=True)
 		additional_settings_layout.alignment = "LEFT"
@@ -652,6 +672,8 @@ class SPRITESHEET_PT_Panel(bpy.types.Panel):
 		rendering_enum_layout.prop(scene.spritesheet_settings, "overlay_rendering_enum", text="")
 		if scene.spritesheet_settings.overlay_rendering_enum == "Separate":
 			additional_settings_layout.label(text="Renders the spritesheet twice.", icon="INFO")
+		else:
+			additional_settings_layout.prop(scene.spritesheet_settings, "add_suffix_for_combined")
 
 		name_suffix_layout = spritesheetsettings_layout.row(align=True)
 		name_suffix_layout.label(text="Sprite sheet name suffix:")
