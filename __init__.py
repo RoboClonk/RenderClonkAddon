@@ -16,7 +16,7 @@ bl_info = {
 	"author" : "Robin Hohnsbeen",
 	"description" : "For importing Clonk meshes and rendering spritesheets.",
 	"blender" : (3, 0, 1),
-	"version" : (2, 5, 0),
+	"version" : (2, 6, 0),
 	"location" : "",
 	"warning" : "",
 	"category" : "Render"
@@ -59,7 +59,7 @@ importlib.reload(PathUtilities)
 importlib.reload(IniPort)
 
 
-print ("Render Clonk 2.5")
+print ("Render Clonk 2.6")
 
 
 AddonDirectory = ""
@@ -224,7 +224,6 @@ class Action_List_Button(bpy.types.Operator):
 			
 		if self.menu_active == 2:
 			anim_entry = context.scene.animlist[context.scene.action_meta_data_index]
-			#anim_entry = context.scene.animlist
 			anim_entry.width = anim_entry.width + 1
 
 		if self.menu_active == 3:
@@ -258,7 +257,17 @@ class Action_List_Button(bpy.types.Operator):
 			if context.scene.action_meta_data_index >= 0 and context.scene.action_meta_data_index < len(context.scene.animlist):
 				context.scene.animlist.remove(context.scene.action_meta_data_index)
 				context.scene.action_meta_data_index = min(context.scene.action_meta_data_index, len(context.scene.animlist)-1)
-			
+
+		# Enable all items
+		if self.menu_active == 8:
+			for action_entry in context.scene.animlist:
+				action_entry.is_used = True
+
+		# Disable all items
+		if self.menu_active == 9:
+			for action_entry in context.scene.animlist:
+				action_entry.is_used = False
+
 		return {"FINISHED"}
 
 
@@ -300,6 +309,10 @@ class ACTION_PT_LayoutPanel(bpy.types.Panel):
 		menu_sort_layout.separator(factor=3.0)
 		menu_sort_layout2.operator("list.list_op", text="", icon="TRIA_UP").menu_active = 4
 		menu_sort_layout2.operator("list.list_op", text="", icon="TRIA_DOWN").menu_active = 5
+		menu_sort_layout2.separator(factor=3.0)
+		menu_sort_layout3 = menu_sort_layout_column.column(align=True)
+		menu_sort_layout3.operator("list.list_op", text="", icon="CHECKBOX_HLT").menu_active = 8
+		menu_sort_layout3.operator("list.list_op", text="", icon="CHECKBOX_DEHLT").menu_active = 9
 
 		preview_button_layout = layout.column()
 		preview_button_layout.alignment = "LEFT"
