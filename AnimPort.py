@@ -37,8 +37,9 @@ def get_anim_import_state(line):
 	else:
 		return anim_import_state.UNDEFINED
 
-def ResetArmature(armature : bpy.types.Armature):
-	for bone in armature.bones:
+def ResetArmature(armature_ob : bpy.types.Object):
+	armature_ob.data.pose_position = "POSE"
+	for bone in armature_ob.pose.bones:
 		bone.location = [0, 0, 0]
 		if bone.rotation_mode == "QUATERNION":
 			bone.rotation_quaternion = [1.0, 0, 0, 0]
