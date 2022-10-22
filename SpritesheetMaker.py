@@ -104,11 +104,11 @@ def GetSpritesheetInfo(action_entries):
 	# Get Height
 	current_x_position = 0
 	current_y_position = 0
-	last_height = 0
 	action_index = 0
 	rows = []
 	row_height = 0
 	special_placement_actions = []
+	first_iteration = True
 	for action_entry in action_entries:
 		if action_entry.use_normal_action_placement == False: # Will be placed later
 			special_placement_actions.append(action_entry)
@@ -117,7 +117,7 @@ def GetSpritesheetInfo(action_entries):
 		sheetstrip_height = get_sheet_strip_height(action_entry, get_scaled=False)
 		sheetstrip_width = get_sheet_strip_width(action_entry, get_scaled=False)
 		
-		if current_x_position > sheet_width - sheetstrip_width and last_height != 0:
+		if sheetstrip_width > sheet_width - current_x_position and first_iteration == False:
 			# Go to new row
 			rows.append({"x_remaining" : sheet_width - current_x_position, "row_height" : row_height})
 			current_x_position = 0
@@ -128,28 +128,29 @@ def GetSpritesheetInfo(action_entries):
 		
 		current_x_position += sheetstrip_width
 		action_index += 1
-		last_height = sheetstrip_height
 
 		if sheetstrip_height > row_height:
 			row_height = sheetstrip_height
+
+		first_iteration = False
 	
 	###
-	sheet_height = current_y_position + last_height
+	sheet_height = current_y_position + row_height
 	rows.append({"x_remaining" : sheet_width - current_x_position, "row_height" : row_height})
 
 	# Try to place these actions at the end of the other action's rows. If no place is found, make a new row.
 	for special_placement_action in special_placement_actions:
-		sprite_height = get_sprite_height(special_placement_action)
-		sprite_width = get_sprite_width(special_placement_action)
+		sheetstrip_height = get_sheet_strip_height(special_placement_action, get_scaled=False)
+		sheetstrip_width = get_sheet_strip_width(special_placement_action, get_scaled=False)
 
 		y_begin = 0
 		x_begin = 0
-		height_remaining = sprite_height
+		height_remaining = sheetstrip_height
 		found_place = False
 		rows_changed = []
 
 		for row_number, row in enumerate(rows):
-			if row["x_remaining"] >= sprite_width:
+			if row["x_remaining"] >= sheetstrip_width:
 				if sheet_width - row["x_remaining"] > x_begin:
 					x_begin = sheet_width - row["x_remaining"]
 
@@ -160,13 +161,18 @@ def GetSpritesheetInfo(action_entries):
 					sheet_strips[MetaData.GetActionName(special_placement_action)] = GetSpriteStripInfo(special_placement_action, x_begin, y_begin)
 					found_place = True
 					for changed_row_number in rows_changed:
-						rows[changed_row_number]["x_remaining"] = max(sheet_width - x_begin + sprite_width, 0)
+						rows[changed_row_number]["x_remaining"] = max(sheet_width - (x_begin + sheetstrip_width), 0)
 					break
 
 			else:
-				y_begin += row["row_height"]
+				y_begin = 0
+				for row_number_2, row_2 in enumerate(rows):
+					y_begin += row_2["row_height"]
+					if row_number_2 == row_number:
+						break
+					
 				x_begin = 0
-				height_remaining = sprite_height
+				height_remaining = sheetstrip_height
 				rows_changed.clear()
 
 		if found_place == False:
@@ -176,7 +182,7 @@ def GetSpritesheetInfo(action_entries):
 			sheet_strips[MetaData.GetActionName(special_placement_action)] = strip_info
 			
 			sheet_height += strip_info["Height"]
-			rows.append({"x_remaining" : strip_info["Width"], "row_height" : strip_info["Height"]})
+			rows.append({"x_remaining" : sheet_width - strip_info["Width"], "row_height" : strip_info["Height"]})
 			
 
 	return math.floor(sheet_width * get_res_multiplier()), math.floor(sheet_height * get_res_multiplier()), sheet_strips
@@ -621,7 +627,6 @@ class TIMER_OT(bpy.types.Operator):
 					bpy.context.scene.render.filepath = output_filepath
 					global current_rerender_state
 					should_render = True
-					print(f"{current_rerender_state}_{action_name}")
 					if os.path.exists(output_filepath + ".png") and current_rerender_state != "" and current_rerender_state != action_name:
 						should_render = False
 						rendered_sprite_image = bpy.data.images.load(output_filepath + ".png")
