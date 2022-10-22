@@ -15,6 +15,9 @@ from . import MetaData
 from . import AnimPort
 from . import PathUtilities
 
+current_action_name = ""
+current_sheet_number = 1
+current_max_sheets = 1
 
 def get_res_multiplier():
 	return bpy.context.scene.render.resolution_percentage / 100.0
@@ -195,6 +198,14 @@ def get_action_visible_objects(action_entry : MetaData.ActionMetaData):
 	visible_objects_filtered = []
 	for object in visible_objects:
 		if object.name in bpy.context.view_layer.objects:
+			# And make sure they shall be visible in the current sprite sheet
+			global current_sheet_number
+			if bpy.context.scene.spritesheet_settings.overlay_rendering_enum == "Separate":
+				if "graphic" in object.name.lower() and current_sheet_number != 1:
+					continue
+				if "overlay" in object.name.lower() and current_sheet_number == 1:
+					continue
+
 			visible_objects_filtered.append(object)
 
 	return visible_objects_filtered
@@ -222,12 +233,12 @@ def prepare_action(action_entry : MetaData.ActionMetaData):
 		raise AssertionError("No Blender action set inside action entry.")
 	
 	if bpy.context.scene.anim_target.type == "ARMATURE":
-		AnimPort.ResetArmature(bpy.context.scene.anim_target.pose)
+		AnimPort.ResetArmature(bpy.context.scene.anim_target)
 	else:
 		reset_object(bpy.context.scene.anim_target)
 
 	for object in bpy.context.view_layer.objects:
-		object.hide_set(True)
+		object.hide_set(True) # Make INvisible
 		object.hide_render = True
 
 	for object in get_action_visible_objects(action_entry):
@@ -356,10 +367,6 @@ def ResetOverlayMaterials(materials_to_replace):
 	for material_info in materials_to_replace:
 		material_index = material_info["material_index"]
 		material_info["owner"].material_slots[material_index].material = material_info["original_material"]
-
-current_action_name = ""
-current_sheet_number = 1
-current_max_sheets = 1
 
 def GetOrthoScale(anim_entry):
 	action_camera = get_action_camera(anim_entry)
