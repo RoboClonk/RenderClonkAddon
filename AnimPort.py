@@ -87,7 +87,7 @@ def LoadAction(path, animation_target, force_import_action=False):
 	bones = pose.bones
 
 
-	file = open(path, "r")
+	file = open(path, "r", encoding="ISO-8859-1")
 	lines = file.readlines()
 	
 	current_bone_name = ""
