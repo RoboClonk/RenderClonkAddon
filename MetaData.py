@@ -89,6 +89,12 @@ class SpriteSheetMetaData(bpy.types.PropertyGroup):
 	fill_material : bpy.props.PointerProperty(type=bpy.types.Material, name='Fill Material', description="Materials with \"Overlay\" in its name will be replaced with this material upon render")
 	add_suffix_for_combined : bpy.props.BoolProperty(name='Add suffix \"_Combined\"', default=True, description="This will add \"_Combined\" at the end of the sprite sheet file name. Useful for testing because it prevents to override the Graphics.png")
 	spritesheet_suffix : bpy.props.StringProperty(name='Spritesheet name suffix', maxlen=32, description="A text that will be added at the end of the output file")
+	render_direction : bpy.props.EnumProperty(
+		items={
+			("Horizontal", "Horizontal", "Sprites in one animation will be placed horizontally", 0), 
+			("Vertical", "Vertical", "Sprites in one animation will be placed vertically", 1)}, 
+		default="Horizontal", options={"HIDDEN"}, name='Sprite packing'
+		)
 
 def MakeRectCutoutPixelPerfect(action_entry : ActionMetaData):
 	scene = bpy.context.scene
@@ -161,7 +167,7 @@ def is_using_cutout(action_entry):
 	return action_entry.region_cropping[0] != 0.0 or action_entry.region_cropping[1] != 1.0 or action_entry.region_cropping[2] != 0.0 or action_entry.region_cropping[3] != 1.0
 
 def GetActionNameFromIndex(list_index):
-	if bpy.context.scene.animlist[list_index].action is None:
+	if len(bpy.context.scene.animlist) == 0 or bpy.context.scene.animlist[list_index].action is None:
 		return ""
 	
 	else:

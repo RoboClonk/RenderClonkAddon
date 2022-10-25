@@ -53,7 +53,7 @@ def get_sheet_strip_width(action_entry, get_scaled=True):
 	x_res_sprite = get_sprite_width(action_entry)
 
 	max_frames = action_entry.max_frames
-	if action_entry.render_type_enum == "Picture":
+	if action_entry.render_type_enum == "Picture" or IsRenderHorizontal() == False:
 		max_frames = 1
 
 	if get_scaled:
@@ -66,10 +66,14 @@ def get_sheet_strip_width(action_entry, get_scaled=True):
 def get_sheet_strip_height(action_entry, get_scaled=True):
 	y_res_sprite = get_sprite_height(action_entry)
 
+	max_frames = 1
+	if IsRenderHorizontal() == False:
+		max_frames = action_entry.max_frames
+
 	if get_scaled:
-		total_y_res = y_res_sprite * get_res_multiplier()
+		total_y_res = max_frames * y_res_sprite * get_res_multiplier()
 	else:
-		total_y_res = y_res_sprite
+		total_y_res = max_frames * y_res_sprite
 
 	return math.floor(total_y_res)
 
@@ -78,11 +82,12 @@ def GetSpriteStripInfo(action_entry, x_position, y_position):
 	sheetstrip_width = get_sheet_strip_width(action_entry, get_scaled=False)
 	sprite_height = get_sprite_height(action_entry)
 	sprite_width = get_sprite_width(action_entry)
+	horizontal = IsRenderHorizontal()
 	sheet_strip_info = {
 		"Height" : sheetstrip_height,
 		"Width" : sheetstrip_width,
-		"X_pos" : x_position,
-		"Y_pos" : y_position,
+		"X_pos" : x_position if horizontal else y_position,
+		"Y_pos" : y_position if horizontal else x_position,
 		"Length" : action_entry.max_frames,
 		"Name" : MetaData.GetActionName(action_entry),
 		"Sprite_Height" : sprite_height,
@@ -93,12 +98,18 @@ def GetSpriteStripInfo(action_entry, x_position, y_position):
 
 def GetSpritesheetInfo(action_entries):
 	# The widest action strip determines the width of the spritesheet.
+	# For vertical rendering: The highest determines the height!
 	sheet_width = 0
 	for action_entry in action_entries:
-		total_x_res = get_sheet_strip_width(action_entry, get_scaled=False)
-		if total_x_res > sheet_width:
-			sheet_width = total_x_res
-	
+		if IsRenderHorizontal():
+			total_x_res = get_sheet_strip_width(action_entry, get_scaled=False)
+			if total_x_res > sheet_width:
+				sheet_width = total_x_res
+		else:
+			total_y_res = get_sheet_strip_height(action_entry, get_scaled=False)
+			if total_y_res > sheet_width:
+				sheet_width = total_y_res
+
 	sheet_strips = {}
 
 	# Get Height
@@ -116,6 +127,10 @@ def GetSpritesheetInfo(action_entries):
 
 		sheetstrip_height = get_sheet_strip_height(action_entry, get_scaled=False)
 		sheetstrip_width = get_sheet_strip_width(action_entry, get_scaled=False)
+		if IsRenderHorizontal() == False:
+			sheetstrip_width_store = sheetstrip_width
+			sheetstrip_width = sheetstrip_height
+			sheetstrip_height = sheetstrip_width_store
 		
 		if sheetstrip_width > sheet_width - current_x_position and first_iteration == False:
 			# Go to new row
@@ -124,7 +139,7 @@ def GetSpritesheetInfo(action_entries):
 			current_y_position += row_height
 			row_height = 0
 		
-		sheet_strips[MetaData.GetActionName(action_entry)] = GetSpriteStripInfo(action_entry, current_x_position, current_y_position)
+		sheet_strips[MetaData.GetActionName(action_entry)] = GetSpriteStripInfo(action_entry, current_x_position, current_y_position) # Handels render direction..
 		
 		current_x_position += sheetstrip_width
 		action_index += 1
@@ -142,6 +157,10 @@ def GetSpritesheetInfo(action_entries):
 	for special_placement_action in special_placement_actions:
 		sheetstrip_height = get_sheet_strip_height(special_placement_action, get_scaled=False)
 		sheetstrip_width = get_sheet_strip_width(special_placement_action, get_scaled=False)
+		if IsRenderHorizontal() == False:
+			sheetstrip_width_store = sheetstrip_width
+			sheetstrip_width = sheetstrip_height
+			sheetstrip_height = sheetstrip_width_store
 
 		y_begin = 0
 		x_begin = 0
@@ -178,14 +197,17 @@ def GetSpritesheetInfo(action_entries):
 		if found_place == False:
 			y_begin = sheet_height
 			x_begin = 0
-			strip_info = GetSpriteStripInfo(special_placement_action, x_begin, y_begin)
-			sheet_strips[MetaData.GetActionName(special_placement_action)] = strip_info
+			sheet_strips[MetaData.GetActionName(special_placement_action)] = GetSpriteStripInfo(special_placement_action, x_begin, y_begin)
 			
-			sheet_height += strip_info["Height"]
-			rows.append({"x_remaining" : sheet_width - strip_info["Width"], "row_height" : strip_info["Height"]})
+			sheet_height += sheetstrip_height
+			rows.append({"x_remaining" : sheet_width - sheetstrip_width, "row_height" : sheetstrip_height})
 			
+	if IsRenderHorizontal():
+		return math.floor(sheet_width * get_res_multiplier()), math.floor(sheet_height * get_res_multiplier()), sheet_strips
+	else:
+		# Swop width and height
+		return math.floor(sheet_height * get_res_multiplier()), math.floor(sheet_width * get_res_multiplier()), sheet_strips
 
-	return math.floor(sheet_width * get_res_multiplier()), math.floor(sheet_height * get_res_multiplier()), sheet_strips
 
 def get_action_visible_objects(action_entry : MetaData.ActionMetaData):
 	visible_objects = []
@@ -410,6 +432,9 @@ def GetImageForPicture(current_action, sprite_width, sprite_height):
 
 	return predefined_image
 
+def IsRenderHorizontal():
+	return bpy.context.scene.spritesheet_settings.render_direction == "Horizontal"
+
 def AdjustOrthoScale(anim_entry):
 	default_camera_zoom = {}
 	action_camera = get_action_camera(anim_entry)
@@ -489,6 +514,7 @@ class TIMER_OT(bpy.types.Operator):
 		self.has_render_finished = True
 		self.sheet_width, self.sheet_height, self.sprite_strips = GetSpritesheetInfo(self.action_entries)
 		self.output_image_data = np.zeros((self.sheet_height, self.sheet_width, 4), 'f')
+
 		full_output_name = self.output_image_name + bpy.context.scene.spritesheet_settings.spritesheet_suffix
 		self.output_image = bpy.data.images.new(full_output_name, width=self.sheet_width, height=self.sheet_height)
 		print("Spritesheetdimensions: " + str(self.sheet_width) + "x" + str(self.sheet_height))
@@ -595,6 +621,7 @@ class TIMER_OT(bpy.types.Operator):
 
 				sheetstrip_width = get_sheet_strip_width(current_action)
 				sheetstrip_height = get_sheet_strip_height(current_action)
+				# if IsRenderHorizontal():  Dimensions are correct for each render direction automatically!
 				self.strip_image_data = np.zeros((sheetstrip_height, sheetstrip_width, 4), 'f')
 
 				self.render_state = 1
@@ -653,7 +680,11 @@ class TIMER_OT(bpy.types.Operator):
 				bpy.data.images.remove(rendered_sprite_image)
 
 				# Paste sprite onto sheet
-				self.strip_image_data[:sprite_height, self.current_frame_number*sprite_width:(self.current_frame_number+1)*sprite_width, :] = sprite_pixel_data[:, :, :]
+				if IsRenderHorizontal():
+					self.strip_image_data[:sprite_height, self.current_frame_number*sprite_width:(self.current_frame_number+1)*sprite_width, :] = sprite_pixel_data[:, :, :]
+				else:
+					self.strip_image_data[self.current_frame_number*sprite_height:(self.current_frame_number+1)*sprite_height, :sprite_width, :] = sprite_pixel_data[:, :, :]
+
 
 				self.current_frame_number += 1
 				if self.current_frame_number == current_action.max_frames or current_action.render_type_enum == "Picture":

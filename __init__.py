@@ -679,6 +679,10 @@ class SPRITESHEET_PT_Panel(bpy.types.Panel):
 		name_suffix_layout.label(text="Sprite sheet name suffix:")
 		name_suffix_layout.prop(bpy.context.scene.spritesheet_settings, "spritesheet_suffix", text="")
 
+		render_direction_layout = spritesheetsettings_layout.row(align=True)
+		render_direction_layout.label(text="Sprite packing:")
+		render_direction_layout.prop(bpy.context.scene.spritesheet_settings, "render_direction", text="")
+
 		custom_output_layout = spritesheetsettings_layout.column(align=True)
 		custom_output_layout.label(text="Custom output directory:")
 		custom_output_layout.prop(bpy.context.scene, "custom_output_dir", text="")
