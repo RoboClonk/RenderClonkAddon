@@ -67,7 +67,7 @@ def get_sheet_strip_height(action_entry, get_scaled=True):
 	y_res_sprite = get_sprite_height(action_entry)
 
 	max_frames = 1
-	if IsRenderHorizontal() == False:
+	if IsRenderHorizontal() == False and action_entry.render_type_enum != "Picture":
 		max_frames = action_entry.max_frames
 
 	if get_scaled:
