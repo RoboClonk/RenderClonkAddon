@@ -115,13 +115,17 @@ class Menu_Button(bpy.types.Operator):
 	menu_active: bpy.props.IntProperty(name="Menu Index", options={"HIDDEN"})
 
 	def execute(self, context):
+		preferences = context.preferences
+		addon_prefs = preferences.addons[__name__].preferences
+
 		if context.scene.lastfilepath is None or context.scene.lastfilepath == "":
-				context.scene.lastfilepath = AddonDirectory
+			context.scene.lastfilepath = addon_prefs.content_folder
 
-
+		# Import Mesh
 		if self.menu_active == 1:
 			bpy.ops.mesh.open_filebrowser("INVOKE_DEFAULT", filepath=context.scene.lastfilepath)
-			
+		
+		# Import Action
 		if self.menu_active == 2:
 			bpy.ops.anim.open_filebrowser("INVOKE_DEFAULT", filepath=context.scene.lastfilepath)
 
@@ -785,7 +789,33 @@ def SceneRenderUpdate(self, context):
 	if resolution == "300%":
 		scene.render.resolution_percentage = 300
 
+class RenderClonkPreferences(bpy.types.AddonPreferences):
+	bl_idname = __name__
+
+	content_folder: bpy.props.StringProperty(
+		name="Clonk content folder",
+		subtype='FILE_PATH',
+		default=''
+	)
+	number: bpy.props.IntProperty(
+		name="Example Number",
+		default=4,
+	)
+	boolean: bpy.props.BoolProperty(
+		name="Example Boolean",
+		default=False,
+	)
+
+	def draw(self, context):
+		layout = self.layout
+		#layout.label(text="This is a preferences view for our add-on")
+		layout.prop(self, "content_folder")
+		#layout.prop(self, "number")
+		#layout.prop(self, "boolean")
+
+
 registered_classes = [
+	RenderClonkPreferences,
 	Menu_Button, 
 	ClonkPort.OT_MeshFilebrowser, 
 	ClonkPort.OT_AnimFilebrowser,
