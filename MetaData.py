@@ -271,3 +271,16 @@ def get_vgroup_mapping(name):
 		return vgroup_map[name]
 
 	return None
+
+
+# TODO:
+action_map = {
+"aimbow": "BowAim",
+}
+
+def get_action_name_mapping(name):
+	name = name.lower()
+	if action_map.get(name) != None:
+		return action_map[name]
+
+	return None

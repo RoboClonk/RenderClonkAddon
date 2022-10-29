@@ -110,6 +110,24 @@ def import_mesh(path, insert_collection=None):
 	if os.path.exists(path) == False:
 		raise FileNotFoundError("No valid mesh file at: " + path)
 
+	if ".meshblend" in path or ".mesh.blend" in path:
+		with bpy.data.libraries.load(path) as (data_from, data_to):
+			data_to.objects = data_from.objects
+
+		for new_object in data_to.objects:
+			# Default: Add to scene collection
+			if insert_collection == None:
+				bpy.context.view_layer.layer_collection.collection.objects.link(new_object)
+			else:
+				insert_collection.objects.link(new_object)
+
+		mesh_objects = []
+		for new_object in data_to.objects:
+			if new_object.type == "MESH":
+				mesh_objects.append(new_object)
+
+		return mesh_objects
+
 	new_object = None
 	file = None
 	try:
@@ -322,4 +340,4 @@ def import_mesh(path, insert_collection=None):
 			file.close()
 
 
-	return new_object
+	return [new_object]

@@ -104,6 +104,27 @@ class MAIN_PT_SettingsPanel(bpy.types.Panel):
 
 		layout.operator(Menu_Button.bl_idname, text="Append Camera+Light", icon="LIGHT").menu_active = 13
 		
+		layout.separator()
+		layout.label(text="Export Clonk data")
+		preferences = context.preferences
+		addon_prefs = preferences.addons[__name__].preferences
+		if addon_prefs.content_folder == "":
+			layout.label(text="Please set your content folder path in the preferences.", icon="INFO")
+			return
+		if os.path.exists(addon_prefs.content_folder) == False:
+			layout.label(text="Content folder path in preferences is invalid.", icon="ERROR")
+			return
+
+		mesh_objects, active_mesh_object = ClonkPort.GetSelectedMeshObjects(context)
+		if active_mesh_object is not None:
+			layout.operator(ClonkPort.OT_MeshExport.bl_idname, text=f"Export {active_mesh_object.name} (.mesh)", icon="EXPORT")
+		else:
+			layout.label(text="Nothing selected ..", icon="ERROR")
+
+
+		
+
+		
 
 
 class Menu_Button(bpy.types.Operator):
@@ -819,6 +840,7 @@ registered_classes = [
 	Menu_Button, 
 	ClonkPort.OT_MeshFilebrowser, 
 	ClonkPort.OT_AnimFilebrowser,
+	ClonkPort.OT_MeshExport,
 	ClonkPort.OT_ActListFilebrowser,
 	ClonkPort.OT_ActMapFilebrowser, 
 	ClonkPort.OT_PictureFilebrowser,
