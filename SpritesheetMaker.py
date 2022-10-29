@@ -683,7 +683,9 @@ class TIMER_OT(bpy.types.Operator):
 				if IsRenderHorizontal():
 					self.strip_image_data[:sprite_height, self.current_frame_number*sprite_width:(self.current_frame_number+1)*sprite_width, :] = sprite_pixel_data[:, :, :]
 				else:
-					self.strip_image_data[self.current_frame_number*sprite_height:(self.current_frame_number+1)*sprite_height, :sprite_width, :] = sprite_pixel_data[:, :, :]
+					max_frames = current_action.max_frames if current_action.render_type_enum != "Picture" else 1
+					frame = max_frames - self.current_frame_number - 1
+					self.strip_image_data[frame*sprite_height:(frame+1)*sprite_height, :sprite_width, :] = sprite_pixel_data[:, :, :]
 
 
 				self.current_frame_number += 1
