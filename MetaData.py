@@ -96,6 +96,17 @@ class SpriteSheetMetaData(bpy.types.PropertyGroup):
 		default="Horizontal", options={"HIDDEN"}, name='Sprite packing'
 		)
 
+	mesh_export_dir : bpy.props.EnumProperty(
+		items={
+			("Crew", "Crew", "Clonks and other living creatures that can be controlled", 0), 
+			("Tool", "Tool", "Tools that a Clonk might use like a hammer", 1), 
+			("Animal", "Animal", "Birds, fishes, monsters, you name it", 2), 
+			("Clothing", "Clothing", "Hats, armor, ..", 3), 
+			("Accessory", "Accessory", "", 4), 
+			("Miscellaneous", "Miscellaneous", "", 5)}, 
+		default="Crew", options={"HIDDEN"}, name='Category', description="Determines the output folder"
+		)
+
 def MakeRectCutoutPixelPerfect(action_entry : ActionMetaData):
 	scene = bpy.context.scene
 
