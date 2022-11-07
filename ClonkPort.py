@@ -783,15 +783,15 @@ def PrintDefCore(path):
 	picture = {
 		"x" : str(0), 
 		"y" : str(0), 
-		"w" : str(math.floor(bpy.context.scene.render.resolution_x*get_res_multiplier())), 
-		"h" : str(math.floor(bpy.context.scene.render.resolution_y*get_res_multiplier()))}
+		"w" : str(math.floor(bpy.context.scene.render.resolution_x)), 
+		"h" : str(math.floor(bpy.context.scene.render.resolution_y))}
 	for action_entry in valid_action_entries:
 		if action_entry.render_type_enum == "Picture":
 			strip = sprite_strips[MetaData.GetActionName(action_entry)]
-			picture["x"] = str(math.floor(strip["X_pos"]*get_res_multiplier()))
-			picture["y"] = str(math.floor(strip["Y_pos"]*get_res_multiplier()))
-			picture["w"] = str(math.floor(strip["Sprite_Width"]*get_res_multiplier()))
-			picture["h"] = str(math.floor(strip["Sprite_Height"]*get_res_multiplier()))
+			picture["x"] = str(math.floor(strip["X_pos"]))
+			picture["y"] = str(math.floor(strip["Y_pos"]))
+			picture["w"] = str(math.floor(strip["Sprite_Width"]))
+			picture["h"] = str(math.floor(strip["Sprite_Height"]))
 			break
 
 	content_section["Picture"] = picture["x"] + "," + picture["y"] + "," + picture["w"] + "," + picture["h"]
