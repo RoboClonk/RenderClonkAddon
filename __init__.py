@@ -130,13 +130,6 @@ class MAIN_PT_SettingsPanel(bpy.types.Panel):
 			layout.label(text="No valid action selected ..")
 
 
-
-
-		
-
-		
-
-
 class Menu_Button(bpy.types.Operator):
 	bl_idname = "menu.menu_op"
 	bl_label = "Menu Button"
@@ -510,7 +503,7 @@ class ACTIONSETTINGS_PT_SubPanel(bpy.types.Panel):
 			if (anim_entry.override_resolution 
 			and (anim_entry.width != scene.render.resolution_x or anim_entry.height != scene.render.resolution_y or SpritesheetMaker.preview_active)
 			and anim_entry.render_type_enum == "Spriteanimation"):
-				x_offset, y_offset = MetaData.get_automatic_face_offset(scene, anim_entry, False)
+				x_offset, y_offset = MetaData.get_automatic_facet_offset(scene, anim_entry, False)
 				shift_offset = anim_entry.override_camera_shift and anim_entry.camera_shift_changes_facet_offset
 				
 				x_addition = f" shift {anim_entry.camera_shift_x}" if shift_offset else ""
@@ -675,6 +668,18 @@ class SPRITESHEET_PT_Panel(bpy.types.Panel):
 			actmapdefcore_layout.operator(Menu_Button.bl_idname, text="Update DefCore.txt", icon="FILE_TEXT").menu_active = 11
 		else:
 			actmapdefcore_layout.operator(Menu_Button.bl_idname, text="Save DefCore.txt", icon="FILE_TEXT").menu_active = 11
+
+		layout.prop(bpy.context.scene.spritesheet_settings, "custom_object_dimensions")
+		if bpy.context.scene.spritesheet_settings.custom_object_dimensions:
+			object_size_col = layout.column(align=True)
+			object_size_col.prop(bpy.context.scene.spritesheet_settings, "object_width")
+			object_size_col.prop(bpy.context.scene.spritesheet_settings, "object_height")
+		layout.prop(bpy.context.scene.spritesheet_settings, "override_object_offset")
+		if bpy.context.scene.spritesheet_settings.override_object_offset:
+			object_center_col = layout.column(align=True)
+			object_center_col.prop(bpy.context.scene.spritesheet_settings, "object_center_x")
+			object_center_col.prop(bpy.context.scene.spritesheet_settings, "object_center_y")
+
 
 		layout.separator(factor=0.2)
 

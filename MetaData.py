@@ -69,14 +69,14 @@ class ActionMetaData(bpy.types.PropertyGroup):
 	override_facet_offset : bpy.props.BoolProperty(
 		name='Override facet offset', 
 		default=False, 
-		description="Overrides the facet offset inside ActMap.txt. Has no effect on rendering the action, so you can simply hit export/update ActMap.txt"
+		description="Overrides the facet offset inside ActMap.txt. Has no effect on rendering the action, so you can simply hit export/update ActMap.txt. Sprite renders may be off center to use the sprite area more efficiently. This offset can move it back to the center in the game"
 	)
 	facet_offset_x : bpy.props.IntProperty(name='Facet offset x', default=0, description="X direction offset in which the facet will be moved inside the game")
 	facet_offset_y : bpy.props.IntProperty(name='Facet offset y', default=0, description="Y direction offset in which the facet will be moved inside the game")
-	override_camera_shift : bpy.props.BoolProperty(name='Override camera shift', description="Change the camera shift for this action. Use [shift + arrow keys] while in preview to change these values on the fly. You need to rerender the sprite sheet and update the ActMap to see an effect in the game")
+	override_camera_shift : bpy.props.BoolProperty(name='Override camera shift', description="Change the camera shift for this action. This can be used to arrange the sprite in the camera bounds better. Use [shift + arrow keys] while in preview to change these values on the fly. You need to rerender the sprite sheet and update the ActMap to see an effect in the game")
 	camera_shift_x : bpy.props.IntProperty(name='Camera shift x', default=0, description="X direction shift of the camera (in pixels)")
 	camera_shift_y : bpy.props.IntProperty(name='Camera shift y', default=0, description="Y direction shift of the camera (in pixels)")
-	camera_shift_changes_facet_offset : bpy.props.BoolProperty(name='Camera shift changes facet offset', default=True, description="The facet offset will automatically be changed to keep the sprite at its original position in the game")
+	camera_shift_changes_facet_offset : bpy.props.BoolProperty(name='Add camera shift to facet offset', default=True, description="The camera shift will be added to the facet offset to keep the sprite at its original position in the game")
 
 class SpriteSheetMetaData(bpy.types.PropertyGroup):
 	overlay_rendering_enum : bpy.props.EnumProperty(
@@ -95,7 +95,6 @@ class SpriteSheetMetaData(bpy.types.PropertyGroup):
 			("Vertical", "Vertical", "Sprites in one animation will be placed vertically", 1)}, 
 		default="Horizontal", options={"HIDDEN"}, name='Sprite packing'
 		)
-
 	mesh_export_dir : bpy.props.EnumProperty(
 		items={
 			("Crew", "Crew", "Clonks and other living creatures that can be controlled", 0), 
@@ -106,6 +105,20 @@ class SpriteSheetMetaData(bpy.types.PropertyGroup):
 			("Miscellaneous", "Miscellaneous", "", 5)}, 
 		default="Crew", options={"HIDDEN"}, name='Category', description="Determines the output folder"
 		)
+	custom_object_dimensions : bpy.props.BoolProperty(
+		name='Custom object size in DefCore', 
+		default=False, 
+		description="Acts as reference size to correctly calculate the facet offset if the render resolution differs from the object size (width and height) in DefCore. If false, the render resolution is used to set the width and height"
+	)
+	object_width : bpy.props.IntProperty(name='Object width', default=16, min=1, description="Width in DefCore")
+	object_height : bpy.props.IntProperty(name='Object height', default=20, min=1, description="Height in DefCore")
+	override_object_offset : bpy.props.BoolProperty(
+		name='Override object offset', 
+		default=False, 
+		description="Determines if the object center (offset) in DefCore will be overridden. Sometimes it is useful to handle this value manually. When set to false, half of the resolution (or custom size) will be calculated for the object center"
+	)
+	object_center_x : bpy.props.IntProperty(name='Object center x', default=8, min=0, description="X distance to object center")
+	object_center_y : bpy.props.IntProperty(name='Object center y', default=10, min=0, description="Y distance to object center")
 
 def MakeRectCutoutPixelPerfect(action_entry : ActionMetaData):
 	scene = bpy.context.scene
@@ -122,9 +135,17 @@ def MakeRectCutoutPixelPerfect(action_entry : ActionMetaData):
 
 	return action_entry
 
-def get_automatic_face_offset(scene, anim_entry, do_round=True):
-	x_offset = -(anim_entry.width - scene.render.resolution_x) / 2.0
-	y_offset = -(anim_entry.height - scene.render.resolution_y) / 2.0
+# Sprites with different resolution need to compensate for their position change
+def get_automatic_facet_offset(scene, anim_entry, do_round=True):
+	custom_dimensions = scene.spritesheet_settings.custom_object_dimensions
+	x_res = scene.spritesheet_settings.object_width if custom_dimensions else scene.render.resolution_x
+	y_res = scene.spritesheet_settings.object_height if custom_dimensions else scene.render.resolution_y
+	
+	anim_width = anim_entry.width if anim_entry.override_resolution else scene.render.resolution_x
+	anim_height = anim_entry.height if anim_entry.override_resolution else scene.render.resolution_y
+
+	x_offset = -(anim_width - x_res) / 2.0
+	y_offset = -(anim_height - y_res) / 2.0
 
 	if do_round:
 		return round(x_offset), round(y_offset)

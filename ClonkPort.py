@@ -693,35 +693,27 @@ def PrintActmap(path, remove_unused_sections=False):
 
 		Facet = x_pos + "," + y_pos + "," + sprite_width + "," + sprite_height
 
-		camera_shift_x = 0
-		camera_shift_y = 0
-		if reference_action_entry.override_camera_shift and reference_action_entry.camera_shift_changes_facet_offset:
-			camera_shift_x = reference_action_entry.camera_shift_x
-			camera_shift_y = reference_action_entry.camera_shift_y
-
 		if reference_action_entry.invert_region_cropping == False and MetaData.is_using_cutout(reference_action_entry):
 			min_max_pixels, pixel_dimensions = MetaData.GetPixelFromCutout(reference_action_entry)
 			# Add cropping offset to facet
 			y_offset = SpritesheetMaker.get_sprite_height(reference_action_entry, include_cropping=False) - min_max_pixels[3]
 			Facet += "," +  str(min_max_pixels[0]) + "," + str(y_offset)
 
-		elif reference_action_entry.override_facet_offset:
-			x_offset = reference_action_entry.facet_offset_x + camera_shift_x
-			y_offset = reference_action_entry.facet_offset_y + camera_shift_y
+		else:
+			x_offset, y_offset = MetaData.get_automatic_facet_offset(bpy.context.scene, reference_action_entry)
+
+			if reference_action_entry.override_facet_offset:
+				x_offset += reference_action_entry.facet_offset_x
+				y_offset += reference_action_entry.facet_offset_y
+
+			if reference_action_entry.override_camera_shift and reference_action_entry.camera_shift_changes_facet_offset:
+				x_offset += reference_action_entry.camera_shift_x
+				y_offset += reference_action_entry.camera_shift_y
+
 			if x_offset != 0 or y_offset != 0:
 				Facet += "," +  str(x_offset) + "," + str(y_offset)
 
-		elif (reference_action_entry.override_resolution 
-		and (reference_action_entry.width != bpy.context.scene.render.resolution_x 
-		or reference_action_entry.height != bpy.context.scene.render.resolution_y)):
-			x_offset, y_offset = MetaData.get_automatic_face_offset(bpy.context.scene, reference_action_entry)
-			x_offset += camera_shift_x
-			y_offset += camera_shift_y
-			if x_offset != 0 or y_offset != 0:
-				Facet += "," +  str(x_offset) + "," + str(y_offset)
-
-			 
-
+		
 		content_section["Facet"] = Facet
 
 		output_content.append(content_section)
@@ -762,7 +754,6 @@ def PrintDefCore(path):
 		print("No old DefCore.txt found. Creating new..")
 
 	
-
 	# Prepare output content
 	output_content = []
 	if len(file_content) == 0:
@@ -774,11 +765,25 @@ def PrintDefCore(path):
 
 	# Update content
 	content_section = output_content[0] # DefCore section
-	content_section["Width"] = str(bpy.context.scene.render.resolution_x)
-	content_section["Height"] = str(bpy.context.scene.render.resolution_y)
-	x_offset = -math.floor(bpy.context.scene.render.resolution_x / 2.0)
-	y_offset = -math.floor(bpy.context.scene.render.resolution_y / 2.0)
-	content_section["Offset"] = str(x_offset) + "," + str(y_offset)
+	if bpy.context.scene.spritesheet_settings.custom_object_dimensions:
+		content_section["Width"] = str(bpy.context.scene.spritesheet_settings.object_width)
+		content_section["Height"] = str(bpy.context.scene.spritesheet_settings.object_height)
+	else:
+		content_section["Width"] = str(bpy.context.scene.render.resolution_x)
+		content_section["Height"] = str(bpy.context.scene.render.resolution_y)
+
+	if bpy.context.scene.spritesheet_settings.override_object_offset:
+		x_offset = -bpy.context.scene.spritesheet_settings.object_center_x
+		y_offset = -bpy.context.scene.spritesheet_settings.object_center_y
+	elif bpy.context.scene.spritesheet_settings.custom_object_dimensions:
+		x_offset = -math.floor(bpy.context.scene.spritesheet_settings.object_width / 2.0)
+		y_offset = -math.floor(bpy.context.scene.spritesheet_settings.object_height / 2.0)
+	else:
+		x_offset = -math.floor(bpy.context.scene.render.resolution_x / 2.0)
+		y_offset = -math.floor(bpy.context.scene.render.resolution_y / 2.0)
+
+		
+	content_section["Offset"] = f"{x_offset}, {y_offset}"
 
 	picture = {
 		"x" : str(0), 
