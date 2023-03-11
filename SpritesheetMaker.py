@@ -486,6 +486,8 @@ class TIMER_OT(bpy.types.Operator):
 	default_camera = None
 	default_camera_zoom = {} # Map from camera to default ortho scale
 	default_camera_shift = {} # Map from camera to default camera shift
+	
+	base_output_path = ""
 
 	cancel_message_type = ""
 	cancel_message = ""
@@ -499,6 +501,8 @@ class TIMER_OT(bpy.types.Operator):
 		self.action_entries = MetaData.GetValidActionEntries()
 
 		messagetype, message = MetaData.CheckIfActionListIsValid(self.action_entries)
+
+		self.base_output_path = bpy.context.scene.render.filepath
 
 		self.base_x = bpy.context.scene.render.resolution_x
 		self.base_y = bpy.context.scene.render.resolution_y
@@ -734,9 +738,10 @@ class TIMER_OT(bpy.types.Operator):
 				if spritesheet_settings.overlay_rendering_enum == "Combined" and spritesheet_settings.add_suffix_for_combined:
 					full_output_name += "_Combined"
 				output_file = os.path.join(self.output_directorypath, full_output_name + ".png")
-				print("Output at: " + output_file)
+				print(f"Output at: {output_file}")
 				self.output_image.save_render(output_file)
 				
+				# Reset default values
 				self.cancel(context)
 
 				if self.set_overlay_material == True and self.replace_overlay_material == False:
@@ -760,6 +765,8 @@ class TIMER_OT(bpy.types.Operator):
 		bpy.context.scene.render.use_border = False
 		bpy.context.scene.render.use_crop_to_border = False
 		bpy.context.scene.camera = self.default_camera
+		bpy.context.scene.render.filepath = self.base_output_path
+
 		self.reset_ortho_scale()
 		self.reset_camera_shift()
 
