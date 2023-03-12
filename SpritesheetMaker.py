@@ -740,7 +740,11 @@ class TIMER_OT(bpy.types.Operator):
 					full_output_name += "_Combined"
 				output_file = os.path.join(self.output_directorypath, full_output_name + ".png")
 				print(f"Output at: {output_file}")
+				default_compression = bpy.context.scene.render.image_settings.compression
+				bpy.context.scene.render.image_settings.compression = spritesheet_settings.output_compression
 				self.output_image.save_render(output_file)
+				bpy.context.scene.render.image_settings.compression = default_compression
+
 				
 				# Reset default values
 				self.cancel(context)

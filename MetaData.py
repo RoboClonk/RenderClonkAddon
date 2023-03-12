@@ -109,6 +109,7 @@ class SpriteSheetMetaData(bpy.types.PropertyGroup):
 	)
 	object_center_x : bpy.props.IntProperty(name='Object center x', default=8, min=0, description="X distance to object center")
 	object_center_y : bpy.props.IntProperty(name='Object center y', default=10, min=0, description="Y distance to object center")
+	output_compression : bpy.props.IntProperty(name='Output compression', default=15, min=0, max=100, subtype="PERCENTAGE", description="Output compression intensity")
 
 def MakeRectCutoutPixelPerfect(action_entry : ActionMetaData):
 	scene = bpy.context.scene

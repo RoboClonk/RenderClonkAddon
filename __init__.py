@@ -699,6 +699,8 @@ class SPRITESHEET_PT_Panel(bpy.types.Panel):
 		render_direction_layout.label(text="Sprite packing:")
 		render_direction_layout.prop(bpy.context.scene.spritesheet_settings, "render_direction", text="")
 
+		spritesheetsettings_layout.prop(bpy.context.scene.spritesheet_settings, "output_compression")
+
 		custom_output_layout = spritesheetsettings_layout.column(align=True)
 		custom_output_layout.label(text="Custom output directory:")
 		custom_output_layout.prop(bpy.context.scene, "custom_output_dir", text="")
