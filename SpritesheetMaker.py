@@ -229,7 +229,8 @@ def get_action_visible_objects(action_entry : MetaData.ActionMetaData):
 		if object.name in bpy.context.view_layer.objects:
 			# And make sure they shall be visible in the current sprite sheet
 			global current_sheet_number
-			if bpy.context.scene.spritesheet_settings.overlay_rendering_enum == "Separate":
+			global preview_active
+			if bpy.context.scene.spritesheet_settings.overlay_rendering_enum == "Separate" and preview_active == False:
 				if "graphic" in object.name.lower() and current_sheet_number != 1:
 					continue
 				if "overlay" in object.name.lower() and current_sheet_number == 1:
@@ -836,6 +837,8 @@ class PREVIEW_OT(bpy.types.Operator):
 		self.default_camera_shift_y = action_camera.data.shift_y
 		self.default_camera_zoom = AdjustOrthoScale(action_entry)
 
+		global preview_active
+		preview_active = True
 		prepare_action(action_entry)
 
 
@@ -847,8 +850,6 @@ class PREVIEW_OT(bpy.types.Operator):
 
 		bpy.ops.screen.animation_cancel()
 		bpy.ops.screen.animation_play()
-		global preview_active
-		preview_active = True
 		self.current_action_entry = action_entry
 		self.preview_next = False
 		self.preview_last = False
