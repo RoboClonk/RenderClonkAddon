@@ -214,13 +214,13 @@ def get_action_visible_objects(action_entry : MetaData.ActionMetaData):
 	visible_objects.append(bpy.context.scene.anim_target)
 	
 	if bpy.context.scene.always_rendered_objects != None:
-		for object in bpy.context.scene.always_rendered_objects.objects:
+		for object in bpy.context.scene.always_rendered_objects.all_objects:
 			visible_objects.append(object)
 
 	if action_entry.additional_object_enum == "1_Object" and action_entry.additional_object != None:
 		visible_objects.append(action_entry.additional_object)
 	elif action_entry.additional_object_enum == "2_Collection" and action_entry.additional_collection != None:
-		for object in action_entry.additional_collection.objects:
+		for object in action_entry.additional_collection.all_objects:
 			visible_objects.append(object)
 
 	# Make sure no objects that live in inactive collections are used.
