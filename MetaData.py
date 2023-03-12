@@ -95,16 +95,6 @@ class SpriteSheetMetaData(bpy.types.PropertyGroup):
 			("Vertical", "Vertical", "Sprites in one animation will be placed vertically", 1)}, 
 		default="Horizontal", options={"HIDDEN"}, name='Sprite packing'
 		)
-	mesh_export_dir : bpy.props.EnumProperty(
-		items={
-			("Crew", "Crew", "Clonks and other living creatures that can be controlled", 0), 
-			("Tool", "Tool", "Tools that a Clonk might use like a hammer", 1), 
-			("Animal", "Animal", "Birds, fishes, monsters, you name it", 2), 
-			("Clothing", "Clothing", "Hats, armor, ..", 3), 
-			("Accessory", "Accessory", "", 4), 
-			("Miscellaneous", "Miscellaneous", "", 5)}, 
-		default="Crew", options={"HIDDEN"}, name='Category', description="Determines the output folder"
-		)
 	custom_object_dimensions : bpy.props.BoolProperty(
 		name='Custom object size in DefCore', 
 		default=False, 
@@ -301,18 +291,5 @@ def get_vgroup_mapping(name):
 	name = name.lower()
 	if vgroup_map.get(name) != None:
 		return vgroup_map[name]
-
-	return None
-
-
-# TODO:
-action_map = {
-"aimbow": "BowAim",
-}
-
-def get_action_name_mapping(name):
-	name = name.lower()
-	if action_map.get(name) != None:
-		return action_map[name]
 
 	return None

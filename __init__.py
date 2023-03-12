@@ -93,8 +93,8 @@ class MAIN_PT_SettingsPanel(bpy.types.Panel):
 
 		layout.separator()
 
-		layout.operator(Menu_Button.bl_idname, text="Import Clonk / Tool (.mesh/blend)", icon="IMPORT").menu_active = 1
-		layout.operator(Menu_Button.bl_idname, text="Import Action (.anim/blend)", icon="ARMATURE_DATA").menu_active = 2
+		layout.operator(Menu_Button.bl_idname, text="Import Clonk / Tool (.mesh)", icon="IMPORT").menu_active = 1
+		layout.operator(Menu_Button.bl_idname, text="Import Action (.anim)", icon="ARMATURE_DATA").menu_active = 2
 
 		layout.separator()
 
@@ -104,30 +104,6 @@ class MAIN_PT_SettingsPanel(bpy.types.Panel):
 
 		layout.operator(Menu_Button.bl_idname, text="Append Camera+Light", icon="LIGHT").menu_active = 13
 		
-		layout.separator()
-		layout.label(text="Export Clonk data")
-		preferences = context.preferences
-		addon_prefs = preferences.addons[__name__].preferences
-		if addon_prefs.content_folder == "":
-			layout.label(text="Please set your content folder path in the preferences.", icon="INFO")
-			return
-		if os.path.exists(addon_prefs.content_folder) == False:
-			layout.label(text="Content folder path in preferences is invalid.", icon="ERROR")
-			return
-
-		mesh_objects, active_mesh_object = ClonkPort.GetSelectedMeshObjects(context)
-		if active_mesh_object is not None:
-			layout.prop(scene.spritesheet_settings, "mesh_export_dir")
-			layout.operator(ClonkPort.OT_MeshExport.bl_idname, text=f"Export mesh {active_mesh_object.name} (.meshblend)", icon="EXPORT")
-		else:
-			layout.label(text="Nothing selected ..", icon="ERROR")
-
-
-		action_name = MetaData.GetActionNameFromIndex(bpy.context.scene.action_meta_data_index)
-		if action_name != "":
-			layout.operator(ClonkPort.OT_AnimExport.bl_idname, text=f"Export action {action_name} (.animblend)", icon="EXPORT")
-		else:
-			layout.label(text="No valid action selected ..")
 
 
 class Menu_Button(bpy.types.Operator):
@@ -844,7 +820,10 @@ class RenderClonkPreferences(bpy.types.AddonPreferences):
 
 	def draw(self, context):
 		layout = self.layout
+		#layout.label(text="This is a preferences view for our add-on")
 		layout.prop(self, "content_folder")
+		#layout.prop(self, "number")
+		#layout.prop(self, "boolean")
 
 
 registered_classes = [
@@ -852,8 +831,6 @@ registered_classes = [
 	Menu_Button, 
 	ClonkPort.OT_MeshFilebrowser, 
 	ClonkPort.OT_AnimFilebrowser,
-	ClonkPort.OT_MeshExport,
-	ClonkPort.OT_AnimExport,
 	ClonkPort.OT_ActListFilebrowser,
 	ClonkPort.OT_ActMapFilebrowser, 
 	ClonkPort.OT_PictureFilebrowser,

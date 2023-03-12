@@ -4,7 +4,6 @@
 #--------------------------
 # Robin Hohnsbeen (Ryou)
 
-from operator import mod
 import bpy
 from bpy.props import StringProperty, BoolProperty, IntProperty
 
@@ -67,10 +66,9 @@ def _ImportExtraMesh(meshname, meshfiles):
 	for meshfilespath in meshfiles:
 		meshfile = Path(meshfilespath)
 		if meshfile.stem == meshname:
-			new_objects = import_mesh_and_parent_to_rig(meshfilespath, reuse_rig=True)
-			for new_object in new_objects:
-				MeshPort.lock_object(new_object, True)
-			return new_objects
+			new_object = import_mesh_and_parent_to_rig(meshfilespath, reuse_rig=True)
+			MeshPort.lock_object(new_object, True)
+			return new_object
 
 	return []
 
@@ -257,46 +255,39 @@ def GetOrAppendCamSetup(ReuseOld=True):
 def import_mesh_and_parent_to_rig(path, reuse_rig, insert_collection=None):
 	clonk_rig = GetOrAppendClonkRig(reuse_rig)
 	
-	clonk_objects = MeshPort.import_mesh(path, insert_collection)
+	clonk_object = MeshPort.import_mesh(path, insert_collection)
 
-	for clonk_object in clonk_objects:
-		clonk_object.parent = clonk_rig
-		clonk_object.matrix_parent_inverse = clonk_rig.matrix_world.inverted()
-		armature_modifier = None
-		for modifier in clonk_object.modifiers:
-			if modifier.type == "ARMATURE":
-				armature_modifier = modifier
-				armature_modifier.name = "ClonkRig"
-				break
-		if armature_modifier is None:
-			armature_modifier = clonk_object.modifiers.new(name="ClonkRig", type="ARMATURE")
-		armature_modifier.object = clonk_rig
+	clonk_object.parent = clonk_rig
+	clonk_object.matrix_parent_inverse = clonk_rig.matrix_world.inverted()
+	clonk_object.modifiers.new(name="ClonkRig", type="ARMATURE")
+	clonk_object.modifiers["ClonkRig"].object = clonk_rig
 
-	return clonk_objects
+	return clonk_object
 
 class OT_MeshFilebrowser(bpy.types.Operator, ImportHelper):
 	bl_idname = "mesh.open_filebrowser"
 	bl_label = "Import Clonk (.mesh)"
 
-	filter_glob: StringProperty(default="*.mesh*", options={"HIDDEN"})
+	filter_glob: StringProperty(default="*.mesh", options={"HIDDEN"})
 
 	parent_to_clonk_rig: BoolProperty(name="Parent to Clonk Rig", default=True, description="This will parent the mesh to the clonk rig and apply an Armature Modifier")
 	reuse_clonk_rig: BoolProperty(name="Reuse Clonk Rig", default=True, description="Whether an existing clonk rig should be used or a new one created")
 
 	def execute(self, context):
+		"""Do something with the selected file(s)."""
 		print(self.filepath)
 
-		if ".mesh" in self.filepath:
+		extension = Path(self.filepath).suffix
+		if extension == ".mesh":
 			if self.parent_to_clonk_rig:
 				collection : bpy.types.Collection = None
 				if bpy.context.scene.always_rendered_objects != None:
 					collection = bpy.context.scene.always_rendered_objects
-				clonk_objects = import_mesh_and_parent_to_rig(self.filepath, self.reuse_clonk_rig, collection)
+				clonk_object = import_mesh_and_parent_to_rig(self.filepath, self.reuse_clonk_rig, collection)
 			else:
-				clonk_objects = MeshPort.import_mesh(self.filepath)
+				clonk_object = MeshPort.import_mesh(self.filepath)
 
-			for clonk_object in clonk_objects:
-				MeshPort.lock_object(clonk_object, True)
+			MeshPort.lock_object(clonk_object, True)
 				
 		else:
 			print(self.filepath + " is no Clonk mesh!")
@@ -304,80 +295,11 @@ class OT_MeshFilebrowser(bpy.types.Operator, ImportHelper):
 		context.scene.lastfilepath = self.filepath
 		return {'FINISHED'}
 
-def GetSelectedMeshObjects(context):
-	active_mesh_object = None
-	mesh_objects = []
-	
-	if context.active_object is not None and context.active_object.type == "MESH":
-		active_mesh_object = context.active_object
-
-	for selected_object in context.selected_objects:
-		if selected_object.type == "MESH":
-			mesh_objects.append(selected_object)
-
-	return mesh_objects, active_mesh_object
-
-class OT_MeshExport(bpy.types.Operator):
-	bl_idname = "mesh.export"
-	bl_label = "Export Clonk/Tool (.mesh)"
-
-	@classmethod
-	def poll(cls, context):
-		preferences = context.preferences
-		addon_prefs = preferences.addons["RenderClonkAddon"].preferences
-
-		if addon_prefs.content_folder == "" or os.path.exists(addon_prefs.content_folder) == False:
-			return False
-
-		mesh_objects, active_mesh_object = GetSelectedMeshObjects(context)
-		
-			
-		return active_mesh_object is not None
-
-	def execute(self, context):
-		preferences = context.preferences
-		addon_prefs = preferences.addons["RenderClonkAddon"].preferences
-
-		mesh_objects, active_mesh_object = GetSelectedMeshObjects(context)
-
-		export_scene = bpy.data.scenes.new(name=f"Export_{active_mesh_object.name}")
-		export_collection = bpy.data.collections.new(name=active_mesh_object.name)
-		try:
-			
-			export_scene.view_layers[0].layer_collection.collection.children.link(export_collection)
-			for mesh_object in mesh_objects:
-				export_collection.objects.link(mesh_object)
-
-			export_collection.asset_mark()
-			export_dir = bpy.context.scene.spritesheet_settings.mesh_export_dir
-
-			data_blocks = set()
-			data_blocks.add(export_scene)
-			meshes_path = os.path.join(addon_prefs.content_folder, export_dir)
-			if os.path.exists(meshes_path) == False:
-				os.mkdir(meshes_path)
-			
-			export_path = os.path.join(meshes_path, f"{active_mesh_object.name}.meshblend")
-
-			bpy.data.libraries.write(export_path, data_blocks, fake_user=True)
-			self.report({"INFO"}, f"Exported mesh \'{active_mesh_object.name}\' successfully")
-
-		except BaseException as Err:
-			self.report({"ERROR"}, f"{Err}")
-			return {"CANCELLED"}
-
-		finally:
-			bpy.data.collections.remove(export_collection)
-			bpy.data.scenes.remove(export_scene)
-			
-		
-		return {'FINISHED'}
-
 class OT_AnimFilebrowser(bpy.types.Operator, ImportHelper):
 	bl_idname = "anim.open_filebrowser"
 	bl_label = "Import Action (.anim)"
 
-	filter_glob: StringProperty(default="*.anim*", options={"HIDDEN"})
+	filter_glob: StringProperty(default="*.anim", options={"HIDDEN"})
 	
 	force_import_action: BoolProperty(name="Force action import", default=False, description="Import action although there is an action with the same name in blender")
 	create_action_entry: BoolProperty(name="Create Action Entry", default=True, description="Create an entry in the actions list")
@@ -390,107 +312,30 @@ class OT_AnimFilebrowser(bpy.types.Operator, ImportHelper):
 
 		print(self.filepath)
 
-		if ".anim" in self.filepath:
+		extension = Path(self.filepath).suffix
+		if extension == ".anim":
+			global AddonDir
 			clonk_rig = GetOrAppendClonkRig(True)
 			if clonk_rig == None:
 				self.report({"ERROR"}, f"ClonkRig not found.")
 				print("ClonkRig not found")
 				return {"CANCELLED"}
 
-			if ".animblend" in self.filepath or ".anim.blend" in self.filepath:
+			anim_data = AnimPort.LoadAction(self.filepath, clonk_rig, self.force_import_action)
+			new_entry = None
+			if self.create_action_entry:
+				new_entry = MetaData.MakeActionEntry(anim_data)
+			if self.import_tool_mesh:
+				_ImportToolsIfAny(new_entry, anim_data, found_meshes)
 
-				with bpy.data.libraries.load(self.filepath) as (data_from, data_to):
-					data_to.scenes = data_from.scenes
-				
-				new_entry = bpy.context.scene.animlist.add()
-				
-				for key, value in data_to.scenes[0].animlist[0].items():
-					new_entry[key] = value
-
-				bpy.data.scenes.remove(data_to.scenes[0])
-
-			else:
-
-				anim_data = AnimPort.LoadAction(self.filepath, clonk_rig, self.force_import_action)
-				new_entry = None
-				if self.create_action_entry:
-					new_entry = MetaData.MakeActionEntry(anim_data)
-				if self.import_tool_mesh:
-					_ImportToolsIfAny(new_entry, anim_data, found_meshes)
-
-				if anim_data.get("ERROR"):
-					self.report({"ERROR"}, f"" + anim_data["ERROR"])
-					return {"CANCELLED"}
+			if anim_data.get("ERROR"):
+				self.report({"ERROR"}, f"" + anim_data["ERROR"])
+				return {"CANCELLED"}
 
 		else:
 			print(self.filepath + " is no Animation!")
 
 		context.scene.lastfilepath = self.filepath
-		return {'FINISHED'}
-		
-class OT_AnimExport(bpy.types.Operator):
-	bl_idname = "anim.export"
-	bl_label = "Export action (.animblend)"
-
-	@classmethod
-	def poll(cls, context):
-		preferences = context.preferences
-		addon_prefs = preferences.addons["RenderClonkAddon"].preferences
-
-		if addon_prefs.content_folder == "" or os.path.exists(addon_prefs.content_folder) == False:
-			return False
-
-		action_name = MetaData.GetActionNameFromIndex(bpy.context.scene.action_meta_data_index)
-		
-		if action_name == "":
-			return False
-			
-		return True
-
-	def execute(self, context):
-		preferences = context.preferences
-		addon_prefs = preferences.addons["RenderClonkAddon"].preferences
-
-		mesh_objects, active_mesh_object = GetSelectedMeshObjects(context)
-
-		export_scene = bpy.data.scenes.new(name=f"Export_{active_mesh_object.name}")
-		export_collection = bpy.data.collections.new(name=active_mesh_object.name)
-		action_name = MetaData.GetActionNameFromIndex(context.scene.action_meta_data_index)
-		if action_name == "":
-			self.report({"ERROR"}, "No valid action entry selected.")
-			return {"CANCELLED"}
-
-		try:
-			
-			export_scene.view_layers[0].layer_collection.collection.children.link(export_collection)
-			
-
-			new_entry = export_scene.animlist.add()
-			selected_entry = context.scene.action_meta_data_index
-	
-			for key, value in context.scene.animlist[selected_entry].items():
-				new_entry[key] = value
-
-			data_blocks = set()
-			data_blocks.add(export_scene)
-			actions_path = os.path.join(addon_prefs.content_folder, "Actions")
-			if os.path.exists(actions_path) == False:
-				os.mkdir(actions_path)
-			
-			export_path = os.path.join(actions_path, f"{action_name}.animblend")
-
-			bpy.data.libraries.write(export_path, data_blocks, fake_user=True)
-			self.report({"INFO"}, f"Exported action \'{action_name}\' successfully")
-
-		except BaseException as Err:
-			self.report({"ERROR"}, f"{Err}")
-			return {"CANCELLED"}
-
-		finally:
-			bpy.data.collections.remove(export_collection)
-			bpy.data.scenes.remove(export_scene)
-			
-		
 		return {'FINISHED'}
 
 class OT_PictureFilebrowser(bpy.types.Operator, ImportHelper):
