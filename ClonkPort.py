@@ -62,7 +62,7 @@ def collect_clonk_content_files(path):
 
 def _ImportExtraMesh(meshname, meshfiles):
 	if bpy.data.objects.find(meshname) > -1:
-		return bpy.data.objects[meshname]
+		return [bpy.data.objects[meshname]]
 	
 	for meshfilespath in meshfiles:
 		meshfile = Path(meshfilespath)
@@ -72,11 +72,11 @@ def _ImportExtraMesh(meshname, meshfiles):
 				MeshPort.lock_object(new_object, True)
 			return new_objects
 
-	return None
+	return []
 
 def _ImportToolsIfAny(action_entry, animdata, meshfiles):
-	tool1: bpy.types.Object = None
-	tool2: bpy.types.Object = None
+	tool1 = []
+	tool2 = []
 	if animdata.get("Tool1"):
 		tool1 = _ImportExtraMesh(animdata["Tool1"], meshfiles)
 	if animdata.get("Tool2"):
@@ -85,19 +85,22 @@ def _ImportToolsIfAny(action_entry, animdata, meshfiles):
 	if action_entry == None:
 		return
 
-	if tool1 and tool2:
-		new_collection = bpy.data.collections.new(name=animdata["Action"].name + "_tools")
-		new_collection.objects.link(tool1)
-		new_collection.objects.link(tool2)
-		bpy.context.scene.collection.children.link(new_collection)
-		action_entry.additional_object_enum = "2_Collection"
-		action_entry.additional_collection = new_collection
-	elif tool1:
-		action_entry.additional_object_enum = "1_Object"
-		action_entry.additional_object = tool1
-	elif tool2:
-		action_entry.additional_object_enum = "1_Object"
-		action_entry.additional_object = tool2
+	if len(tool1) > 0 or len(tool2) > 0:
+		if len(tool1) + len(tool2) > 1:
+			new_collection = bpy.data.collections.new(name=animdata["Action"].name + "_tools")
+			for tool in tool1:
+				new_collection.objects.link(tool)
+			for tool in tool2:
+				new_collection.objects.link(tool)
+			bpy.context.scene.collection.children.link(new_collection)
+			action_entry.additional_object_enum = "2_Collection"
+			action_entry.additional_collection = new_collection
+		elif len(tool1) > 0:
+			action_entry.additional_object_enum = "1_Object"
+			action_entry.additional_object = tool1[0]
+		elif len(tool2) > 0:
+			action_entry.additional_object_enum = "1_Object"
+			action_entry.additional_object = tool2[0]
 
 def ImportActList(path, animfiles, meshfiles, target, create_entry, import_tools):
 	print("Read act " + path)

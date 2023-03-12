@@ -339,5 +339,7 @@ def import_mesh(path, insert_collection=None):
 		if file:
 			file.close()
 
-
-	return [new_object]
+	if new_object:
+		return [new_object]
+	else:
+		return []
