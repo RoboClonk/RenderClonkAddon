@@ -653,7 +653,7 @@ class TIMER_OT(bpy.types.Operator):
 					if current_sheet_number == 1 and settings.overlay_rendering_enum == "Combined" and settings.add_suffix_for_combined:
 						graphicsoverlay = "c"
 					action_name = MetaData.GetActionName(current_action)
-					sprite_name = f"{action_name}_f{bpy.context.scene.frame_current}{suffix}_{graphicsoverlay}"
+					sprite_name = f"{context.scene.name}_{action_name}_f{bpy.context.scene.frame_current}{suffix}_{graphicsoverlay}"
 					output_filepath = os.path.join(PathUtilities.GetOutputPath(), "sprites", sprite_name)
 					
 					bpy.context.scene.render.filepath = output_filepath
