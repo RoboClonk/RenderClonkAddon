@@ -284,7 +284,6 @@ class Action_List_Button(bpy.types.Operator):
 
 		return {"FINISHED"}
 
-
 class ACTION_PT_LayoutPanel(bpy.types.Panel):
 	bl_label = "Actions"
 	bl_space_type = "VIEW_3D"
@@ -300,8 +299,14 @@ class ACTION_PT_LayoutPanel(bpy.types.Panel):
 
 		anim_target_row = main_setting_column.row()
 		anim_target_row.alignment = "RIGHT"
+		
 		anim_target_row.label(text="Action target", icon="PLAY")
-		anim_target_row.prop(scene, "anim_target", text="")
+		anim_target_row.prop(scene, "anim_target_enum", text="")
+		if bpy.context.scene.anim_target_enum == "1_Object":
+			anim_target_row.prop(scene, "anim_target", text="")
+		else:
+			anim_target_row.prop(scene, "anim_target_collection", text="")
+
 		main_setting_column.separator()
 
 		always_rendered_row = main_setting_column.row()
@@ -335,7 +340,7 @@ class ACTION_PT_LayoutPanel(bpy.types.Panel):
 			return
 
 		anim_entry = scene.animlist[scene.action_meta_data_index]
-		preview_button_layout.enabled = (scene.anim_target != None and anim_entry.action != None)
+		preview_button_layout.enabled = (MetaData.has_anim_target() and anim_entry.action != None)
 		if SpritesheetMaker.preview_active:
 			preview_button_layout.operator(Menu_Button.bl_idname, text="Playing.. (Press escape to cancel)", icon="PAUSE").menu_active = 8
 			shortcuthint_layout = layout.column(align=True)
@@ -875,6 +880,14 @@ def register():
 			description="Actions that are listed below will be applied to this object as soon as \"Render Spritesheet\" is pressed. Using an armature is recommended, but not necessary", 
 			poll=None,
 		)
+
+		bpy.types.Scene.anim_target_enum = bpy.props.EnumProperty(
+		items={("1_Object", "Object", "Render one object", 1), ("2_Collection", "Collection", "Render whole collection", 2)}, 
+		default="1_Object", options={"HIDDEN"}, name=''
+		)
+		
+		bpy.types.Scene.anim_target_collection = bpy.props.PointerProperty(type=bpy.types.Collection, name='', description="A collection that holds objects that are all animated.")
+
 		bpy.types.Scene.always_rendered_objects = bpy.props.PointerProperty(
 			type=bpy.types.Collection, 
 			name="Always rendered", 
@@ -907,6 +920,8 @@ def unregister():
 	bpy.utils.previews.remove(preview_collections["main"])
 
 	del bpy.types.Scene.anim_target
+	del bpy.types.Scene.anim_target_enum
+	del bpy.types.Scene.anim_target_collection
 	del bpy.types.Scene.action_meta_data_index
 	del bpy.types.Scene.animlist
 	del bpy.types.Scene.always_rendered_objects
