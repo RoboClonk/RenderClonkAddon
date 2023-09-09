@@ -57,7 +57,7 @@ importlib.reload(PathUtilities)
 importlib.reload(IniPort)
 
 
-print("Render Clonk 2.7")
+print(f"Render Clonk {bl_info['version']}")
 
 
 AddonDirectory = ""
@@ -837,6 +837,10 @@ class SPRITESHEET_PT_Panel(bpy.types.Panel):
         pcoll = preview_collections["main"]
         clonk_icon = pcoll["clonk_icon"]
         layout.template_icon(icon_value=clonk_icon.icon_id, scale=3)
+        version_layout = layout
+        version_layout.alignment = "RIGHT"
+        version = f"{bl_info['version']}"[1:-1]
+        version_layout.label(text=f"v. {version}")
 
 
 class ABOUT_PT_LayoutPanel(bpy.types.Panel):
