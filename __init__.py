@@ -345,10 +345,10 @@ class ACTION_PT_LayoutPanel(bpy.types.Panel):
 
         main_setting_column = layout.column(align=False)
 
-        anim_target_row = main_setting_column.row()
-        anim_target_row.alignment = "RIGHT"
+        anim_target_column = main_setting_column.column(align=True)
+        anim_target_column.label(text="Action target", icon="PLAY")
+        anim_target_row = anim_target_column.row(align=True)
 
-        anim_target_row.label(text="Action target", icon="PLAY")
         anim_target_row.prop(scene, "anim_target_enum", text="")
         if bpy.context.scene.anim_target_enum == "1_Object":
             anim_target_row.prop(scene, "anim_target", text="")
@@ -358,7 +358,6 @@ class ACTION_PT_LayoutPanel(bpy.types.Panel):
         main_setting_column.separator()
 
         always_rendered_row = main_setting_column.row()
-        always_rendered_row.alignment = "RIGHT"
         always_rendered_row.label(text="Always rendered")
         always_rendered_row.prop(scene, "always_rendered_objects", text="")
 
@@ -1006,8 +1005,8 @@ def register():
     )
 
     bpy.types.Scene.anim_target_enum = bpy.props.EnumProperty(
-        items={("1_Object", "Object", "Render one object", 1),
-               ("2_Collection", "Collection", "Render whole collection", 2)},
+        items={("1_Object", "Object", "Animate one object", 1),
+               ("2_Collection", "Collection", "Animate whole collection with the same action", 2)},
         default="1_Object", options={"HIDDEN"}, name=''
     )
 
