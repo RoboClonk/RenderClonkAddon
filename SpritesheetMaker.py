@@ -210,17 +210,19 @@ def GetSpritesheetInfo(action_entries):
 
 
 def get_action_visible_objects(action_entry : MetaData.ActionMetaData):
+	# TODO: Decide if we really want to make anim targets always visible. We have the always rendered collection already..
 	visible_objects = []
-	visible_objects.append(bpy.context.scene.anim_target)
+	for anim_object in MetaData.get_anim_targets():
+		visible_objects.append(anim_object)
 	
 	if bpy.context.scene.always_rendered_objects != None:
-		for object in bpy.context.scene.always_rendered_objects.objects:
+		for object in bpy.context.scene.always_rendered_objects.all_objects:
 			visible_objects.append(object)
 
 	if action_entry.additional_object_enum == "1_Object" and action_entry.additional_object != None:
 		visible_objects.append(action_entry.additional_object)
 	elif action_entry.additional_object_enum == "2_Collection" and action_entry.additional_collection != None:
-		for object in action_entry.additional_collection.objects:
+		for object in action_entry.additional_collection.all_objects:
 			visible_objects.append(object)
 
 	# Make sure no objects that live in inactive collections are used.
@@ -229,7 +231,8 @@ def get_action_visible_objects(action_entry : MetaData.ActionMetaData):
 		if object.name in bpy.context.view_layer.objects:
 			# And make sure they shall be visible in the current sprite sheet
 			global current_sheet_number
-			if bpy.context.scene.spritesheet_settings.overlay_rendering_enum == "Separate":
+			global preview_active
+			if bpy.context.scene.spritesheet_settings.overlay_rendering_enum == "Separate" and preview_active == False:
 				if "graphic" in object.name.lower() and current_sheet_number != 1:
 					continue
 				if "overlay" in object.name.lower() and current_sheet_number == 1:
@@ -254,17 +257,22 @@ def get_action_camera(action_entry):
 	return bpy.context.scene.camera
 
 def prepare_action(action_entry : MetaData.ActionMetaData):
-	if bpy.context.scene.anim_target == None:
+	if MetaData.has_anim_target() == False:
 		raise AssertionError("No anim target assigned!")
 	if action_entry == None:
 		raise AssertionError("Action entry not assigned.")
 	if action_entry.action == None:
 		raise AssertionError("No Blender action set inside action entry.")
 	
-	if bpy.context.scene.anim_target.type == "ARMATURE":
-		AnimPort.ResetArmature(bpy.context.scene.anim_target)
-	else:
-		reset_object(bpy.context.scene.anim_target)
+	for anim_object in MetaData.get_anim_targets():
+		if anim_object.type == "ARMATURE":
+			AnimPort.ResetArmature(anim_object)
+		else:
+			reset_object(anim_object)
+
+		if anim_object.animation_data == None:
+			anim_object.animation_data_create()
+		anim_object.animation_data.action = action_entry.action
 
 	for object in bpy.context.view_layer.objects:
 		object.hide_set(True) # Make INvisible
@@ -282,11 +290,6 @@ def prepare_action(action_entry : MetaData.ActionMetaData):
 		bpy.context.scene.frame_current = action_entry.start_frame
 		bpy.context.scene.frame_start = action_entry.start_frame
 		bpy.context.scene.frame_end = action_entry.start_frame + action_entry.max_frames-1
-
-	if bpy.context.scene.anim_target.animation_data == None:
-		bpy.context.scene.anim_target.animation_data_create()
-
-	bpy.context.scene.anim_target.animation_data.action = action_entry.action
 
 	x_dim, y_dim = get_current_render_dimensions(action_entry)
 	bpy.context.scene.render.resolution_x = x_dim
@@ -314,6 +317,7 @@ def get_current_render_dimensions(action_entry):
 		return action_entry.width, action_entry.height
 	else:
 		return bpy.context.scene.render.resolution_x, bpy.context.scene.render.resolution_y
+
 
 def GetMaterialsToReplace():
 	materials_to_replace = []
@@ -364,6 +368,7 @@ def ReplaceOverlayMaterials(materials_to_replace, replace_overlay=True):
 			else:
 				material_info["owner"].material_slots[material_index].material = material_info["original_material"]
 
+
 def ReplaceFillMaterials(materials_to_replace):
 	fill_material = bpy.context.scene.spritesheet_settings.fill_material
 
@@ -373,6 +378,7 @@ def ReplaceFillMaterials(materials_to_replace):
 		if material_info["is_overlay"]:
 			material_info["owner"].material_slots[material_index].material = fill_material
 
+
 def ReplaceMaterialWithName(materials_to_replace, search_name, replacement_material):
 	for material_info in materials_to_replace:
 		material_index = material_info["material_index"]
@@ -381,6 +387,7 @@ def ReplaceMaterialWithName(materials_to_replace, search_name, replacement_mater
 
 		if current_material is material_info["original_material"] and material_name.find(search_name) > -1:
 			material_info["owner"].material_slots[material_index].material = replacement_material
+
 
 def ResetMaterialReplacementByName(materials_to_replace, search_name, replacement_material): # replacement_material is used as a key to find the material that was replaced.
 	for material_info in materials_to_replace:
@@ -397,6 +404,7 @@ def ResetOverlayMaterials(materials_to_replace):
 		material_index = material_info["material_index"]
 		material_info["owner"].material_slots[material_index].material = material_info["original_material"]
 
+
 def GetOrthoScale(anim_entry):
 	action_camera = get_action_camera(anim_entry)
 	if action_camera.data.sensor_fit == "VERTICAL":
@@ -410,6 +418,7 @@ def GetOrthoScale(anim_entry):
 			zoom_multiplier = anim_entry.height / bpy.context.scene.render.resolution_y
 
 	return action_camera.data.ortho_scale * zoom_multiplier
+
 
 def GetImageForPicture(current_action, sprite_width, sprite_height):
 	predefined_image = None
@@ -432,8 +441,10 @@ def GetImageForPicture(current_action, sprite_width, sprite_height):
 
 	return predefined_image
 
+
 def IsRenderHorizontal():
 	return bpy.context.scene.spritesheet_settings.render_direction == "Horizontal"
+
 
 def AdjustOrthoScale(anim_entry):
 	default_camera_zoom = {}
@@ -445,6 +456,7 @@ def AdjustOrthoScale(anim_entry):
 		action_camera.data.ortho_scale = GetOrthoScale(anim_entry)
 
 	return default_camera_zoom
+
 
 # Spritesheet rendering
 class TIMER_OT(bpy.types.Operator):
@@ -617,8 +629,13 @@ class TIMER_OT(bpy.types.Operator):
 				self.reset_camera_shift()
 				self.store_camera_shift(current_action)
 				
-				prepare_action(current_action)
-
+				try:
+					prepare_action(current_action)
+				except BaseException as Err:
+					print(f"{Err}")
+					self.report({"ERROR"}, f"{Err}")
+					self.cancel(context)
+					return {'CANCELLED'}
 
 				if current_action.find_material_name != "" and current_action.replace_material != None:
 					ReplaceMaterialWithName(self.replacement_materials, current_action.find_material_name, current_action.replace_material)
@@ -652,7 +669,7 @@ class TIMER_OT(bpy.types.Operator):
 					if current_sheet_number == 1 and settings.overlay_rendering_enum == "Combined" and settings.add_suffix_for_combined:
 						graphicsoverlay = "c"
 					action_name = MetaData.GetActionName(current_action)
-					sprite_name = f"{action_name}_f{bpy.context.scene.frame_current}{suffix}_{graphicsoverlay}"
+					sprite_name = f"{context.scene.name}_{action_name}_f{bpy.context.scene.frame_current}{suffix}_{graphicsoverlay}"
 					output_filepath = os.path.join(PathUtilities.GetOutputPath(), "sprites", sprite_name)
 					
 					bpy.context.scene.render.filepath = output_filepath
@@ -739,7 +756,11 @@ class TIMER_OT(bpy.types.Operator):
 					full_output_name += "_Combined"
 				output_file = os.path.join(self.output_directorypath, full_output_name + ".png")
 				print(f"Output at: {output_file}")
+				default_compression = bpy.context.scene.render.image_settings.compression
+				bpy.context.scene.render.image_settings.compression = spritesheet_settings.output_compression
 				self.output_image.save_render(output_file)
+				bpy.context.scene.render.image_settings.compression = default_compression
+
 				
 				# Reset default values
 				self.cancel(context)
@@ -836,8 +857,16 @@ class PREVIEW_OT(bpy.types.Operator):
 		self.default_camera_shift_y = action_camera.data.shift_y
 		self.default_camera_zoom = AdjustOrthoScale(action_entry)
 
-		prepare_action(action_entry)
-
+		global preview_active
+		preview_active = True
+	
+		try:
+			prepare_action(action_entry)
+		except BaseException as Err:
+			print(f"{Err}")
+			self.report({"ERROR"}, f"{Err}")
+			self.reset()
+			return {'CANCELLED'}
 
 		if action_entry.find_material_name != "" and action_entry.replace_material != None:
 			self.materials_to_replace = GetMaterialsToReplace()
@@ -847,8 +876,6 @@ class PREVIEW_OT(bpy.types.Operator):
 
 		bpy.ops.screen.animation_cancel()
 		bpy.ops.screen.animation_play()
-		global preview_active
-		preview_active = True
 		self.current_action_entry = action_entry
 		self.preview_next = False
 		self.preview_last = False

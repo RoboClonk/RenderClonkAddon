@@ -599,7 +599,7 @@ class OT_ActMapFilebrowser(bpy.types.Operator, ImportHelper):
 
 			reporttype, message = ImportActMap(self.filepath, found_actions, found_meshes, bpy.context.scene.anim_target, self.create_action_entry, self.import_tool_mesh)
 
-			self.report({reporttype}, "%s" % (message))
+			self.report({reporttype}, f"{message}")
 
 		else:
 			print(self.filepath + " is no ActMap!")

@@ -7,6 +7,21 @@
 import bpy
 import math
 
+def has_anim_target() -> bool:
+	if bpy.context.scene.anim_target_enum == "1_Object":
+		return bpy.context.scene.anim_target is not None
+	else:
+		if bpy.context.scene.anim_target_collection is None:
+			return False
+		return len(bpy.context.scene.anim_target_collection.all_objects) > 0
+	
+def get_anim_targets():
+	if bpy.context.scene.anim_target_enum == "1_Object":
+		return [bpy.context.scene.anim_target]
+	else:
+		return bpy.context.scene.anim_target_collection.all_objects
+
+
 class ActionMetaData(bpy.types.PropertyGroup):
 	is_used : bpy.props.BoolProperty(
 		name='Enabled', 
@@ -109,6 +124,7 @@ class SpriteSheetMetaData(bpy.types.PropertyGroup):
 	)
 	object_center_x : bpy.props.IntProperty(name='Object center x', default=8, min=0, description="X distance to object center")
 	object_center_y : bpy.props.IntProperty(name='Object center y', default=10, min=0, description="Y distance to object center")
+	output_compression : bpy.props.IntProperty(name='Output compression', default=15, min=0, max=100, subtype="PERCENTAGE", description="Output compression intensity")
 
 	mesh_export_dir : bpy.props.EnumProperty(
 		items={
