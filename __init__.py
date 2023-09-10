@@ -57,7 +57,7 @@ importlib.reload(PathUtilities)
 importlib.reload(IniPort)
 
 
-print(f"Render Clonk {bl_info['version']}")
+print(f"Loading Render Clonk {bl_info['version']}")
 
 
 AddonDirectory = ""
@@ -89,16 +89,16 @@ class MAIN_PT_SettingsPanel(bpy.types.Panel):
         layout.label(text="Load Clonk data")
         actlist_layout = layout.column(align=True)
         actlist_layout.operator(
-            Menu_Button.bl_idname, text="Import Action List (.act)", icon="IMPORT").menu_active = 6
+            Menu_Button.bl_idname, text="Import Action List...", icon="IMPORT").menu_active = 6
 
         actlist_layout.operator(
-            Menu_Button.bl_idname, text="Import ActMap.txt", icon="IMPORT").menu_active = 12
+            Menu_Button.bl_idname, text="Import ActMap...", icon="IMPORT").menu_active = 12
 
         layout.separator()
 
         layout.operator(Menu_Button.bl_idname,
-                        text="Import Clonk / Tool (.mesh/blend)", icon="IMPORT").menu_active = 1
-        layout.operator(Menu_Button.bl_idname, text="Import Action (.anim/blend)",
+                        text="Import Model...", icon="IMPORT").menu_active = 1
+        layout.operator(Menu_Button.bl_idname, text="Import Action...",
                         icon="ARMATURE_DATA").menu_active = 2
 
         layout.separator()
@@ -137,7 +137,7 @@ class MAIN_PT_SettingsPanel(bpy.types.Panel):
             bpy.context.scene.action_meta_data_index)
         if action_name != "":
             layout.operator(ClonkPort.OT_AnimExport.bl_idname,
-                            text=f"Export action {action_name} (.animblend)", icon="EXPORT")
+                            text=f"Export Action: {action_name}", icon="EXPORT")
         else:
             layout.label(text="No valid action selected ..")
 
