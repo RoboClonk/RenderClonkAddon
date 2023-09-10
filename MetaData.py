@@ -16,6 +16,17 @@ def has_anim_target() -> bool:
             return False
         return len(bpy.context.scene.anim_target_collection.all_objects) > 0
 
+def get_action_entry_tools(action_entry):
+    tools = []
+    collection = None
+    if action_entry.additional_object_enum == "1_Object" and action_entry.additional_object != None:
+        tools.append(action_entry.additional_object)
+    elif action_entry.additional_object_enum == "2_Collection" and action_entry.additional_collection != None:
+        collection = action_entry.additional_collection
+        for object in action_entry.additional_collection.all_objects:
+            tools.append(object)
+
+    return tools, collection
 
 def get_anim_targets():
     if bpy.context.scene.anim_target_enum == "1_Object":
@@ -159,17 +170,6 @@ class SpriteSheetMetaData(bpy.types.PropertyGroup):
         name='Object center y', default=10, min=0, description="Y distance to object center")
     output_compression: bpy.props.IntProperty(
         name='Output compression', default=15, min=0, max=100, subtype="PERCENTAGE", description="Output compression intensity")
-
-    mesh_export_dir: bpy.props.EnumProperty(
-        items={
-            ("Crew", "Crew", "Clonks and other living creatures that can be controlled", 0),
-            ("Tool", "Tool", "Tools that a Clonk might use like a hammer", 1),
-            ("Animal", "Animal", "Birds, fishes, monsters, you name it", 2),
-            ("Clothing", "Clothing", "Hats, armor, ..", 3),
-            ("Accessory", "Accessory", "", 4),
-            ("Miscellaneous", "Miscellaneous", "", 5)},
-        default="Crew", options={"HIDDEN"}, name='Category', description="Determines the output folder"
-    )
 
 
 def MakeRectCutoutPixelPerfect(action_entry: ActionMetaData):
@@ -320,6 +320,25 @@ def MakeActionEntry(anim_data):
 
     return new_entry
 
+def replace_duplicate_materials(in_objects):
+    unused_materials = set()    
+    for new_object in in_objects:
+        if new_object.type == "MESH":
+            # Replace imported materials with existing materials.
+            for material_slot in new_object.material_slots:
+                if material_slot.material is not None:
+                    for index in range(1, 5):
+                        if f".00{index}" in material_slot.material.name:
+                            existing_material = bpy.data.materials.find(material_slot.material.name.replace(f".00{index}", ""))
+                            if existing_material:
+                                unused_materials.add(material_slot.material)
+                                material_slot.material = bpy.data.materials[existing_material]
+                                break
+                
+    for unused_material in unused_materials:
+        if unused_material is None:
+            continue
+        bpy.data.materials.remove(unused_material)
 
 vgroup_map = {
     "dagger": "Tool1",

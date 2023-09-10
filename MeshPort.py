@@ -102,6 +102,8 @@ def GetParameters(line):
 
 
 def lock_object(object, is_locked=True):
+    if object is None:
+        return
     object.lock_location = [is_locked, is_locked, is_locked]
     if len(object.lock_rotation) == 3:
         object.lock_rotation = [is_locked, is_locked, is_locked]
@@ -123,6 +125,7 @@ def import_mesh(path, insert_collection=None):
             data_to.objects = data_from.objects
 
         for new_object in data_to.objects:
+            lock_object(new_object, True)
             # Default: Add to scene collection
             if insert_collection == None:
                 bpy.context.view_layer.layer_collection.collection.objects.link(
@@ -130,13 +133,11 @@ def import_mesh(path, insert_collection=None):
             else:
                 insert_collection.objects.link(new_object)
 
-        mesh_objects = []
-        for new_object in data_to.objects:
-            if new_object.type == "MESH":
-                mesh_objects.append(new_object)
+        MetaData.replace_duplicate_materials(data_to.objects)
 
-        return mesh_objects
+        return data_to.objects # Return all objects and filter later
 
+    # Legacy import method for .mesh files.
     new_object = None
     file = None
     try:
@@ -366,6 +367,8 @@ def import_mesh(path, insert_collection=None):
         bpy.context.view_layer.objects.active = new_object
         new_object.select_set(True)
         bpy.ops.object.shade_smooth()
+        lock_object(new_object, True)
+
     except BaseException as Err:
         path = Path(path)
         print("", Err)

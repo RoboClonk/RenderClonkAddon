@@ -72,16 +72,16 @@ def _ImportExtraMesh(meshname, meshfiles):
     for meshfilespath in meshfiles:
         meshfile = Path(meshfilespath)
         if meshfile.stem == meshname:
-            new_objects = import_mesh_and_parent_to_rig(
-                meshfilespath, reuse_rig=True)
-            for new_object in new_objects:
-                MeshPort.lock_object(new_object, True)
+            clonk_objects = MeshPort.import_mesh(meshfilespath)
+            new_objects = reuse_rigs_and_parent_objects(
+                clonk_objects, reuse_rig=True)
+
             return new_objects
 
     return []
 
 
-def _ImportToolsIfAny(action_entry, animdata, meshfiles):
+def _ImportToolsIfAnyLegacy(action_entry, animdata, meshfiles):
     tool1 = []
     tool2 = []
     if animdata.get("Tool1"):
@@ -111,6 +111,51 @@ def _ImportToolsIfAny(action_entry, animdata, meshfiles):
             action_entry.additional_object = tool2[0]
 
 
+def LoadAction(path, animation_target, force_import_action=False, import_tools=True):
+    if ".animblend" in path or ".anim.blend" in path:
+
+        with bpy.data.libraries.load(path) as (data_from, data_to):
+            data_to.scenes = data_from.scenes
+
+        new_entry = bpy.context.scene.animlist.add()
+
+        for key, value in data_to.scenes[0].animlist[0].items():
+            new_entry[key] = value
+
+        tool_objects, collection = MetaData.get_action_entry_tools(new_entry)
+
+        # These objects get implicitly imported when they are referenced inside an anim blend file.
+        if import_tools:
+            if collection:
+                bpy.context.view_layer.layer_collection.collection.children.link(collection)
+            elif len(tool_objects) == 1:
+                bpy.context.view_layer.layer_collection.collection.objects.link(tool_objects[0])
+
+            MetaData.replace_duplicate_materials(tool_objects)
+            reuse_rigs_and_parent_objects(tool_objects, True)
+
+        # Remove them again
+        else:
+            for tool in tool_objects:
+                if tool:
+                    if tool.type == "MESH":
+                        for material_slot in tool.material_slots:
+                            if material_slot.material:
+                                bpy.data.materials.remove(material_slot.material)
+
+                    bpy.data.objects.remove(tool)
+                    if collection:
+                        bpy.data.collections.remove(collection)
+
+        bpy.data.scenes.remove(data_to.scenes[0])
+
+        return None
+
+
+    else:
+        return AnimPort.LoadActionLegacy(path, animation_target, force_import_action)
+
+
 def ImportActList(path, animfiles, meshfiles, target, create_entry, import_tools):
     print("Read act " + path)
     file = open(path, "r")
@@ -136,13 +181,14 @@ def ImportActList(path, animfiles, meshfiles, target, create_entry, import_tools
             continue
 
         if animfilemap.get(line) != None:
-            anim_data = AnimPort.LoadAction(animfilemap[line], target)
+            anim_data = LoadAction(animfilemap[line], target, import_tools=import_tools)
 
-            new_entry = None
-            if create_entry:
-                new_entry = MetaData.MakeActionEntry(anim_data)
-            if import_tools:
-                _ImportToolsIfAny(new_entry, anim_data, meshfiles)
+            if anim_data: # Legacy import
+                new_entry = None
+                if create_entry:
+                    new_entry = MetaData.MakeActionEntry(anim_data)
+                if import_tools:
+                    _ImportToolsIfAnyLegacy(new_entry, anim_data, meshfiles)
 
         else:
             animations_not_found.append(line)
@@ -157,9 +203,8 @@ def ImportActList(path, animfiles, meshfiles, target, create_entry, import_tools
     else:
         return "INFO", "Imported all actions from act file."
 
+
 # ActMap.txt
-
-
 def ImportActMap(path, animfiles, meshfiles, target, create_entry, import_tools):
     print("Read actmap " + path)
     file = open(path, "r")
@@ -179,13 +224,14 @@ def ImportActMap(path, animfiles, meshfiles, target, create_entry, import_tools)
         action = section["Name"]
 
         if animfilemap.get(action) != None:
-            anim_data = AnimPort.LoadAction(animfilemap[action], target)
+            anim_data = LoadAction(animfilemap[action], target, import_tools=import_tools)
 
-            new_entry = None
-            if create_entry:
-                new_entry = MetaData.MakeActionEntry(anim_data)
-            if import_tools:
-                _ImportToolsIfAny(new_entry, anim_data, meshfiles)
+            if anim_data: # Legacy import
+                new_entry = None
+                if create_entry:
+                    new_entry = MetaData.MakeActionEntry(anim_data)
+                if import_tools:
+                    _ImportToolsIfAnyLegacy(new_entry, anim_data, meshfiles)
 
         else:
             animations_not_found.append(action)
@@ -271,32 +317,136 @@ def GetOrAppendCamSetup(ReuseOld=True):
 
     return bpy.data.collections['CamSetup']
 
+def are_armatures_equal(first, second) -> bool:
+    if first is None or second is None:
+        print("Can't compare armatures. One of them is None!")
 
-def import_mesh_and_parent_to_rig(path, reuse_rig, insert_collection=None):
-    clonk_rig = GetOrAppendClonkRig(reuse_rig)
-
-    clonk_objects = MeshPort.import_mesh(path, insert_collection)
-
-    for clonk_object in clonk_objects:
-        clonk_object.parent = clonk_rig
-        clonk_object.matrix_parent_inverse = clonk_rig.matrix_world.inverted()
-        armature_modifier = None
-        for modifier in clonk_object.modifiers:
-            if modifier.type == "ARMATURE":
-                armature_modifier = modifier
-                armature_modifier.name = "ClonkRig"
+    if len(first.data.bones) != len(second.data.bones):
+        return False
+    
+    maching_names = 0
+    for bone_first in first.data.bones:
+        for bone_second in second.data.bones:
+            if bone_first.name == bone_second.name:
+                maching_names += 1
                 break
+
+    return maching_names == len(first.data.bones)
+   
+
+def get_armature_modifier(in_object):
+    for modifier in in_object.modifiers:
+        if modifier.type == "ARMATURE":
+            return modifier
+        
+def parent_objects_to_rig(in_objects, rig):
+    for clonk_object in in_objects:
+        if clonk_object is None:
+            continue
+        if clonk_object.type == "ARMATURE":
+            continue
+        if clonk_object.parent and clonk_object.parent.type != "ARMATURE":
+            continue # Ignore objects that are parented to other objects. So we don't destroy normal object parenting.
+
+        clonk_object.parent = rig
+        clonk_object.matrix_parent_inverse = rig.matrix_world.inverted()
+        if clonk_object.parent_type == "BONE":
+            continue
+
+        armature_modifier = get_armature_modifier(clonk_object)
         if armature_modifier is None:
             armature_modifier = clonk_object.modifiers.new(
                 name="ClonkRig", type="ARMATURE")
-        armature_modifier.object = clonk_rig
+        armature_modifier.object = rig
 
-    return clonk_objects
+def get_anim_target_armatures():
+    armatures = []
+    for anim_target in MetaData.get_anim_targets():
+        if anim_target is None:
+            continue
+        if anim_target.type == "ARMATURE":
+            armatures.append(anim_target)
+
+    return armatures
+
+def reuse_rigs_and_parent_objects(in_objects, reuse_rig, insert_collection=None):
+    # On import there is the posibility to import armatures as well. There could even be several armatures that are linked to individual objects.
+    # Furthermore, we usually want wo reuse the rigs we have, since the imported rig might be identical to the clonk rig (or other rigs in the scene already)
+    # So we compare the imported rigs with the ones available and then decide what rigs to keep.
+    clonk_rig = GetOrAppendClonkRig(reuse_rig)
+
+    objects_without_rig = []
+    armatures_to_object = {}
+
+    # Sort objects by armature
+    # Find out what objects aren't attached to armatures
+    for clonk_object in in_objects:
+        if clonk_object is None:
+            continue
+
+        if clonk_object.type == "ARMATURE":
+            continue
+
+        armature_modifier = get_armature_modifier(clonk_object)
+        if (armature_modifier and armature_modifier.object) or (clonk_object.parent and clonk_object.parent.type == "ARMATURE" and clonk_object.parent_type == "BONE"):
+            parent_armature = None
+            if armature_modifier:
+                parent_armature = armature_modifier.object
+            else:
+                parent_armature = clonk_object.parent
+            
+            if parent_armature in armatures_to_object:
+                armatures_to_object[parent_armature].append(clonk_object)
+            else:
+                armatures_to_object[parent_armature] = [clonk_object]
+        else:
+            objects_without_rig.append(clonk_object)
+
+    unused_armatures = set()
+    for imported_armature in armatures_to_object.keys():
+        if imported_armature is None:
+            continue
+
+        anim_targets = get_anim_target_armatures()
+        if len(anim_targets) > 0:
+            found_matching_anim_target = False
+            for anim_target in anim_targets:
+                if are_armatures_equal(anim_target, imported_armature):
+                    objects_with_armature = armatures_to_object[imported_armature]
+                    parent_objects_to_rig(objects_with_armature, anim_target)
+                    unused_armatures.add(imported_armature)
+                    found_matching_anim_target = True
+                    print(f"Armature {anim_target.name} is equal to {imported_armature.name}. Removing imported armature.")
+                    break
+
+            if found_matching_anim_target == False:
+                anim_target_collection = bpy.context.scene.anim_target_collection
+                if anim_target_collection is None:
+                    anim_target_collection = bpy.data.collections.new("AnimTargets")
+                    bpy.context.scene.anim_target_collection = anim_target_collection
+                    bpy.context.view_layer.layer_collection.collection.children.link(anim_target_collection)
+
+                if bpy.context.scene.anim_target is not None:
+                    anim_target_collection.objects.link(bpy.context.scene.anim_target)
+
+                if bpy.context.scene.anim_target_enum == "1_Object":
+                    bpy.context.scene.anim_target_enum = "2_Collection"
+
+                anim_target_collection.objects.link(imported_armature)
+
+    for unused_armature in unused_armatures:
+        if unused_armature in in_objects:
+            in_objects.remove(unused_armature)
+        bpy.data.objects.remove(unused_armature)
+
+    parent_objects_to_rig(objects_without_rig, clonk_rig)
+
+    return in_objects
 
 
 class OT_MeshFilebrowser(bpy.types.Operator, ImportHelper):
     bl_idname = "mesh.open_filebrowser"
-    bl_label = "Import Clonk (.mesh)"
+    bl_label = "Import Mesh (.mesh/blend)"
 
     filter_glob: StringProperty(default="*.mesh*", options={"HIDDEN"})
 
@@ -313,13 +463,11 @@ class OT_MeshFilebrowser(bpy.types.Operator, ImportHelper):
                 collection: bpy.types.Collection = None
                 if bpy.context.scene.always_rendered_objects != None:
                     collection = bpy.context.scene.always_rendered_objects
-                clonk_objects = import_mesh_and_parent_to_rig(
-                    self.filepath, self.reuse_clonk_rig, collection)
+                clonk_objects = MeshPort.import_mesh(self.filepath, collection)
+                clonk_objects = reuse_rigs_and_parent_objects(
+                    clonk_objects, self.reuse_clonk_rig)
             else:
                 clonk_objects = MeshPort.import_mesh(self.filepath)
-
-            for clonk_object in clonk_objects:
-                MeshPort.lock_object(clonk_object, True)
 
         else:
             print(self.filepath + " is no Clonk mesh!")
@@ -328,18 +476,18 @@ class OT_MeshFilebrowser(bpy.types.Operator, ImportHelper):
         return {'FINISHED'}
 
 
-def GetSelectedMeshObjects(context):
-    active_mesh_object = None
-    mesh_objects = []
+def GetSelectedObjects(context):
+    active_object = None
+    out_objects = []
 
-    if context.active_object is not None and context.active_object.type == "MESH":
-        active_mesh_object = context.active_object
+    if context.active_object is not None and context.active_object.type != "ARMATURE":
+        active_object = context.active_object
 
     for selected_object in context.selected_objects:
-        if selected_object.type == "MESH":
-            mesh_objects.append(selected_object)
+        if selected_object.type != "ARMATURE":
+            out_objects.append(selected_object)
 
-    return mesh_objects, active_mesh_object
+    return out_objects, active_object
 
 
 class OT_MeshExport(bpy.types.Operator):
@@ -354,15 +502,16 @@ class OT_MeshExport(bpy.types.Operator):
         if addon_prefs.content_folder == "" or os.path.exists(addon_prefs.content_folder) == False:
             return False
 
-        mesh_objects, active_mesh_object = GetSelectedMeshObjects(context)
+        mesh_objects, active_mesh_object = GetSelectedObjects(context)
 
         return active_mesh_object is not None
 
+    # TODO: Open filebrowser
     def execute(self, context):
         preferences = context.preferences
         addon_prefs = preferences.addons["RenderClonkAddon"].preferences
 
-        mesh_objects, active_mesh_object = GetSelectedMeshObjects(context)
+        mesh_objects, active_mesh_object = GetSelectedObjects(context)
 
         export_scene = bpy.data.scenes.new(
             name=f"Export_{active_mesh_object.name}")
@@ -373,14 +522,15 @@ class OT_MeshExport(bpy.types.Operator):
             export_scene.view_layers[0].layer_collection.collection.children.link(
                 export_collection)
             for mesh_object in mesh_objects:
+                if mesh_object.animation_data is not None:
+                    mesh_object.animation_data.action = None # We don't want to export other animations
                 export_collection.objects.link(mesh_object)
 
             export_collection.asset_mark()
-            export_dir = bpy.context.scene.spritesheet_settings.mesh_export_dir
 
             data_blocks = set()
             data_blocks.add(export_scene)
-            meshes_path = os.path.join(addon_prefs.content_folder, export_dir)
+            meshes_path = os.path.join(addon_prefs.content_folder, "Meshes")
             if os.path.exists(meshes_path) == False:
                 os.mkdir(meshes_path)
 
@@ -389,7 +539,7 @@ class OT_MeshExport(bpy.types.Operator):
 
             bpy.data.libraries.write(export_path, data_blocks, fake_user=True)
             self.report(
-                {"INFO"}, f"Exported mesh \'{active_mesh_object.name}\' successfully")
+                {"INFO"}, f"Exported mesh \'{active_mesh_object.name}\' successfully to \'{meshes_path}\'")
 
         except BaseException as Err:
             self.report({"ERROR"}, f"{Err}")
@@ -404,16 +554,14 @@ class OT_MeshExport(bpy.types.Operator):
 
 class OT_AnimFilebrowser(bpy.types.Operator, ImportHelper):
     bl_idname = "anim.open_filebrowser"
-    bl_label = "Import Action (.anim)"
+    bl_label = "Import Action (.anim/.animblend)"
 
     filter_glob: StringProperty(default="*.anim*", options={"HIDDEN"})
 
     force_import_action: BoolProperty(name="Force action import", default=False,
                                       description="Import action although there is an action with the same name in blender")
-    create_action_entry: BoolProperty(
-        name="Create Action Entry", default=True, description="Create an entry in the actions list")
-    import_tool_mesh: BoolProperty(name="Import Tool Mesh", default=True,
-                                   description="Import tool meshes if the action references any")
+    import_tools: BoolProperty(name="Import Tool Objects", default=True,
+                                   description="Import tool objects if the action references any")
 
     def execute(self, context):
         parent_path = Path(self.filepath).parents[1]
@@ -429,27 +577,13 @@ class OT_AnimFilebrowser(bpy.types.Operator, ImportHelper):
                 print("ClonkRig not found")
                 return {"CANCELLED"}
 
-            if ".animblend" in self.filepath or ".anim.blend" in self.filepath:
-
-                with bpy.data.libraries.load(self.filepath) as (data_from, data_to):
-                    data_to.scenes = data_from.scenes
-
-                new_entry = bpy.context.scene.animlist.add()
-
-                for key, value in data_to.scenes[0].animlist[0].items():
-                    new_entry[key] = value
-
-                bpy.data.scenes.remove(data_to.scenes[0])
-
-            else:
-
-                anim_data = AnimPort.LoadAction(
-                    self.filepath, clonk_rig, self.force_import_action)
-                new_entry = None
-                if self.create_action_entry:
-                    new_entry = MetaData.MakeActionEntry(anim_data)
-                if self.import_tool_mesh:
-                    _ImportToolsIfAny(new_entry, anim_data, found_meshes)
+            anim_data = LoadAction(
+                self.filepath, clonk_rig, self.force_import_action, import_tools=self.import_tools)
+            
+            if anim_data: # Legacy import
+                new_entry = MetaData.MakeActionEntry(anim_data)
+                if self.import_tools:
+                    _ImportToolsIfAnyLegacy(new_entry, anim_data, found_meshes)
 
                 if anim_data.get("ERROR"):
                     self.report({"ERROR"}, f"" + anim_data["ERROR"])
@@ -486,20 +620,18 @@ class OT_AnimExport(bpy.types.Operator):
         preferences = context.preferences
         addon_prefs = preferences.addons["RenderClonkAddon"].preferences
 
-        mesh_objects, active_mesh_object = GetSelectedMeshObjects(context)
-
-        export_scene = bpy.data.scenes.new(
-            name=f"Export_{active_mesh_object.name}")
-        export_collection = bpy.data.collections.new(
-            name=active_mesh_object.name)
         action_name = MetaData.GetActionNameFromIndex(
             context.scene.action_meta_data_index)
         if action_name == "":
             self.report({"ERROR"}, "No valid action entry selected.")
             return {"CANCELLED"}
 
-        try:
+        export_scene = bpy.data.scenes.new(
+            name=f"Export_{action_name}")
+        export_collection = bpy.data.collections.new(
+            name=action_name)
 
+        try:
             export_scene.view_layers[0].layer_collection.collection.children.link(
                 export_collection)
 
@@ -507,6 +639,7 @@ class OT_AnimExport(bpy.types.Operator):
             selected_entry = context.scene.action_meta_data_index
 
             for key, value in context.scene.animlist[selected_entry].items():
+                print(str(key))
                 new_entry[key] = value
 
             data_blocks = set()
@@ -520,7 +653,7 @@ class OT_AnimExport(bpy.types.Operator):
 
             bpy.data.libraries.write(export_path, data_blocks, fake_user=True)
             self.report(
-                {"INFO"}, f"Exported action \'{action_name}\' successfully")
+                {"INFO"}, f"Exported action \'{action_name}\' successfully to \'{export_path}\'")
 
         except BaseException as Err:
             self.report({"ERROR"}, f"{Err}")
@@ -585,6 +718,11 @@ class OT_ActListFilebrowser(bpy.types.Operator, ImportHelper):
     import_tool_mesh: BoolProperty(name="Import Tool Meshes", default=True,
                                    description="Import tool meshes if the actions reference any")
 
+    def draw(self, context):
+        layout = self.layout
+
+        layout.label(text="An action list (.act) contains names of actions")
+
     def execute(self, context):
         parent_path = Path(self.filepath).parents[1]
         collect_clonk_content_files(parent_path)
@@ -625,12 +763,11 @@ class OT_ActMapFilebrowser(bpy.types.Operator, ImportHelper):
                                    description="Import tool meshes if the actions reference any")
 
     def execute(self, context):
-        parent_path = Path(self.filepath).parents[1]
-        collect_clonk_content_files(parent_path)
-        print(self.filepath)
-
         extension = Path(self.filepath).name
         if "actmap" in extension.lower():
+            parent_path = Path(self.filepath).parents[1]
+            collect_clonk_content_files(parent_path)
+            print(self.filepath)
             global found_actions
             clonk_rig = GetOrAppendClonkRig()
             bpy.context.scene.anim_target = clonk_rig

@@ -124,12 +124,12 @@ class MAIN_PT_SettingsPanel(bpy.types.Panel):
                 text="Content folder path in preferences is invalid.", icon="ERROR")
             return
 
-        mesh_objects, active_mesh_object = ClonkPort.GetSelectedMeshObjects(
+        selected_objects, active_selected_object = ClonkPort.GetSelectedObjects(
             context)
-        if active_mesh_object is not None:
-            layout.prop(scene.spritesheet_settings, "mesh_export_dir")
+        if active_selected_object is not None:
+            mesh_export_label = f"Export Object: \'{active_selected_object.name}\'" if len(selected_objects) <= 1 else f"Export {len(selected_objects)} objects together as \'{active_selected_object.name}\'"
             layout.operator(ClonkPort.OT_MeshExport.bl_idname,
-                            text=f"Export mesh {active_mesh_object.name} (.meshblend)", icon="EXPORT")
+                            text=mesh_export_label, icon="EXPORT")
         else:
             layout.label(text="Nothing selected ..", icon="ERROR")
 

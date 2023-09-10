@@ -52,10 +52,9 @@ def ResetArmature(armature_ob: bpy.types.Object):
         bone.scale = [1.0, 1.0, 1.0]
 
 
-def LoadAction(path, animation_target, force_import_action=False):
+def LoadActionLegacy(path, animation_target, force_import_action=False):
     splitpath = str.split(path, os.sep)
     (filename, extension) = os.path.splitext(splitpath[len(splitpath)-1])
-
     anim_data = {}
     if animation_target == None:
         raise UnboundLocalError("Animation Target is None!")

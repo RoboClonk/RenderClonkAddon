@@ -240,11 +240,9 @@ def get_action_visible_objects(action_entry: MetaData.ActionMetaData):
         for object in bpy.context.scene.always_rendered_objects.all_objects:
             visible_objects.append(object)
 
-    if action_entry.additional_object_enum == "1_Object" and action_entry.additional_object != None:
-        visible_objects.append(action_entry.additional_object)
-    elif action_entry.additional_object_enum == "2_Collection" and action_entry.additional_collection != None:
-        for object in action_entry.additional_collection.all_objects:
-            visible_objects.append(object)
+    tools, collection = MetaData.get_action_entry_tools(action_entry)
+    for tool in tools:
+        visible_objects.append(tool)
 
     # Make sure no objects that live in inactive collections are used.
     visible_objects_filtered = []
