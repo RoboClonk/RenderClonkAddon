@@ -39,8 +39,8 @@ def content_glob_search(path):
     global found_actions
     global found_actionlists
 
-    found_meshes += glob.glob(os.path.join(path, "*.mesh"), recursive=False)
-    found_actions += glob.glob(os.path.join(path, "*.anim"), recursive=False)
+    found_meshes += glob.glob(os.path.join(path, "*.mesh*"), recursive=False)
+    found_actions += glob.glob(os.path.join(path, "*.anim*"), recursive=False)
     found_actionlists += glob.glob(os.path.join(path,
                                    "*.act"), recursive=False)
 
@@ -156,6 +156,20 @@ def LoadAction(path, animation_target, force_import_action=False, import_tools=T
         return AnimPort.LoadActionLegacy(path, animation_target, force_import_action)
 
 
+def get_animfilemap(animfiles):
+    animfilemap = {}
+    for animfilepath in animfiles:
+        animpath = Path(animfilepath)
+
+        # Prioritize blend files
+        if animpath.stem in animfilemap and "blend" not in animpath.suffix:
+            pass
+        else:
+            animfilemap[animpath.stem] = animfilepath
+
+    return animfilemap
+
+
 def ImportActList(path, animfiles, meshfiles, target, create_entry, import_tools):
     print("Read act " + path)
     file = open(path, "r")
@@ -165,10 +179,7 @@ def ImportActList(path, animfiles, meshfiles, target, create_entry, import_tools
 
     print("Looking in " + str(len(animfiles)) + " animfiles")
 
-    animfilemap = {}
-    for animfilepath in animfiles:
-        animpath = Path(animfilepath)
-        animfilemap[animpath.stem] = animfilepath
+    animfilemap = get_animfilemap(animfiles)
 
     animations_not_found = []
     for line in lines:
@@ -214,10 +225,7 @@ def ImportActMap(path, animfiles, meshfiles, target, create_entry, import_tools)
 
     print("Looking in " + str(len(animfiles)) + " animfiles")
 
-    animfilemap = {}
-    for animfilepath in animfiles:
-        animpath = Path(animfilepath)
-        animfilemap[animpath.stem] = animfilepath
+    animfilemap = get_animfilemap(animfiles)
 
     animations_not_found = []
     for section in actmap:
