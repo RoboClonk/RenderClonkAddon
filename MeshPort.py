@@ -237,6 +237,7 @@ def import_mesh(path, insert_collection=None):
                         if reuse_materials:
                             # Just ignore the next lines about materials
                             mode = mesh_import_state.EMPTY
+                            current_mat_name == ""
 
                     elif param_name == "Color":
                         bpy.data.materials.get(current_mat_name).node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = [
@@ -282,14 +283,11 @@ def import_mesh(path, insert_collection=None):
                         bpy.data.materials.get(
                             current_mat_name).node_tree.nodes['Principled BSDF'].inputs['Subsurface'].default_value = float(values[0])
 
-                if mode == mesh_import_state.FACEMATS:
-                    list = ReadIntList(line)
-                    list_index = 0
-                    for material_index in list:
-                        new_object.data.polygons[list_index].material_index = material_index
-                        list_index += 1
-
                 if mode == mesh_import_state.TEXTURES:
+                    if current_mat_name == "": # The last material was already present, so we ignore the texture as well.
+                        mode = mesh_import_state.EMPTY
+                        continue
+
                     param_name, values = GetParameters(line)
 
                     if param_name == "Name":
@@ -331,6 +329,13 @@ def import_mesh(path, insert_collection=None):
                         # This is usually just UVCoordinates which is the default
                         # texco = values[0]
                         pass
+                
+                if mode == mesh_import_state.FACEMATS:
+                    list = ReadIntList(line)
+                    list_index = 0
+                    for material_index in list:
+                        new_object.data.polygons[list_index].material_index = material_index
+                        list_index += 1
 
                 # TODO: Load Modifiers
 
