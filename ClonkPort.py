@@ -821,11 +821,6 @@ class OT_ActListFilebrowser(bpy.types.Operator, ImportHelper):
     reuse_materials_on_tools: BoolProperty(name="Reuse tool materials", default=True,
                                    description="Decide whether to search for existing materials and replace imported ones.")
 
-    def draw(self, context):
-        layout = self.layout
-
-        layout.label(text="An action list (.act) contains names of actions")
-
     def execute(self, context):
         parent_path = Path(self.filepath).parents[1]
         collect_clonk_content_files(parent_path)
