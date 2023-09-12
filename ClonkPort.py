@@ -9,9 +9,11 @@ import bpy
 from bpy.props import StringProperty, BoolProperty, IntProperty
 
 import math
+import mathutils
 import glob  # for wildcard directory search
 
 from bpy_extras.io_utils import ImportHelper
+from bpy_extras.io_utils import ExportHelper
 from pathlib import Path
 import os
 from . import AnimPort
@@ -41,8 +43,7 @@ def content_glob_search(path):
 
     found_meshes += glob.glob(os.path.join(path, "*.mesh*"), recursive=False)
     found_actions += glob.glob(os.path.join(path, "*.anim*"), recursive=False)
-    found_actionlists += glob.glob(os.path.join(path,
-                                   "*.act"), recursive=False)
+    found_actionlists += glob.glob(os.path.join(path, "*.act"), recursive=False)
 
 
 def collect_clonk_content_files(path):
@@ -303,6 +304,7 @@ def GetOrAppendClonkRig(ReuseOld=True):
                 dir, "RenderClonk.blend", "Collection")),
             filename="ClonkRig"
         )
+        add_anim_target(bpy.data.objects['ClonkRig'])
 
     for child in bpy.data.objects['ClonkRig'].children:
         if child.type == "CAMERA":
@@ -377,7 +379,34 @@ def get_anim_target_armatures():
 
     return armatures
 
-def reuse_rigs_and_parent_objects(in_objects, reuse_rig, insert_collection=None):
+def add_anim_target(in_object):
+    if in_object is None:
+        return
+    found_anim_target = None
+    if bpy.context.scene.anim_target_enum == "1_Object":
+        if bpy.context.scene.anim_target is None:
+            bpy.context.scene.anim_target = in_object
+            return
+        else:
+            found_anim_target = bpy.context.scene.anim_target
+        
+    anim_target_collection = bpy.context.scene.anim_target_collection
+    if anim_target_collection is None:
+        anim_target_collection = bpy.data.collections.new("AnimTargets")
+        bpy.context.scene.anim_target_collection = anim_target_collection
+        bpy.context.view_layer.layer_collection.collection.children.link(anim_target_collection)
+
+    if found_anim_target is not None:
+        if found_anim_target.name not in anim_target_collection.objects:
+            anim_target_collection.objects.link(found_anim_target)
+
+    if in_object.name not in anim_target_collection.objects:
+        anim_target_collection.objects.link(in_object)
+
+    if bpy.context.scene.anim_target_enum == "1_Object":
+        bpy.context.scene.anim_target_enum = "2_Collection"
+
+def reuse_rigs_and_parent_objects(in_objects, reuse_rig):
     # On import there is the posibility to import armatures as well. There could even be several armatures that are linked to individual objects.
     # Furthermore, we usually want wo reuse the rigs we have, since the imported rig might be identical to the clonk rig (or other rigs in the scene already)
     # So we compare the imported rigs with the ones available and then decide what rigs to keep.
@@ -411,7 +440,7 @@ def reuse_rigs_and_parent_objects(in_objects, reuse_rig, insert_collection=None)
             objects_without_rig.append(clonk_object)
 
     unused_armatures = set()
-    for imported_armature in armatures_to_object.keys():
+    for imported_armature, objects_with_armature in armatures_to_object.items():
         if imported_armature is None:
             continue
 
@@ -420,7 +449,6 @@ def reuse_rigs_and_parent_objects(in_objects, reuse_rig, insert_collection=None)
             found_matching_anim_target = False
             for anim_target in anim_targets:
                 if are_armatures_equal(anim_target, imported_armature):
-                    objects_with_armature = armatures_to_object[imported_armature]
                     parent_objects_to_rig(objects_with_armature, anim_target)
                     unused_armatures.add(imported_armature)
                     found_matching_anim_target = True
@@ -428,19 +456,7 @@ def reuse_rigs_and_parent_objects(in_objects, reuse_rig, insert_collection=None)
                     break
 
             if found_matching_anim_target == False:
-                anim_target_collection = bpy.context.scene.anim_target_collection
-                if anim_target_collection is None:
-                    anim_target_collection = bpy.data.collections.new("AnimTargets")
-                    bpy.context.scene.anim_target_collection = anim_target_collection
-                    bpy.context.view_layer.layer_collection.collection.children.link(anim_target_collection)
-
-                if bpy.context.scene.anim_target is not None:
-                    anim_target_collection.objects.link(bpy.context.scene.anim_target)
-
-                if bpy.context.scene.anim_target_enum == "1_Object":
-                    bpy.context.scene.anim_target_enum = "2_Collection"
-
-                anim_target_collection.objects.link(imported_armature)
+                add_anim_target(imported_armature)
 
     for unused_armature in unused_armatures:
         if unused_armature in in_objects:
@@ -455,6 +471,7 @@ def reuse_rigs_and_parent_objects(in_objects, reuse_rig, insert_collection=None)
 class OT_MeshFilebrowser(bpy.types.Operator, ImportHelper):
     bl_idname = "mesh.open_filebrowser"
     bl_label = "Import Mesh (.mesh/blend)"
+    bl_options = {'UNDO'}
 
     filter_glob: StringProperty(default="*.mesh*", options={"HIDDEN"})
 
@@ -498,71 +515,100 @@ def GetSelectedObjects(context):
     return out_objects, active_object
 
 
+def export_objects(filepath, selected_objects):
+    modular_filepath = Path(filepath)
+    file_name = modular_filepath.stem
+    export_scene = bpy.data.scenes.new(name=f"Export_{file_name}")
+    export_collection = bpy.data.collections.new(name=file_name)
+    
+    try:
+        export_scene.view_layers[0].layer_collection.collection.children.link(export_collection)
+        for selected_object in selected_objects:
+            export_collection.objects.link(selected_object)
+            
+            if selected_object.animation_data is not None:
+                selected_object.animation_data.action = None # We don't want to export other animations
+
+        export_collection.asset_mark()
+
+        data_blocks = set()
+        data_blocks.add(export_scene)
+        
+        bpy.data.libraries.write(filepath, data_blocks, fake_user=True)
+
+    except BaseException as Err:
+        return Err
+
+    finally:
+        bpy.data.collections.remove(export_collection)
+        bpy.data.scenes.remove(export_scene)
+
 class OT_MeshExport(bpy.types.Operator):
     bl_idname = "mesh.export"
-    bl_label = "Export Clonk/Tool (.mesh)"
+    bl_label = "Export Object (.meshblend)"
 
     @classmethod
     def poll(cls, context):
-        preferences = context.preferences
-        addon_prefs = preferences.addons["RenderClonkAddon"].preferences
+        selected_objects, active_object = GetSelectedObjects(context)
+        
+        return active_object is not None
 
-        if addon_prefs.content_folder == "" or os.path.exists(addon_prefs.content_folder) == False:
-            return False
-
-        mesh_objects, active_mesh_object = GetSelectedObjects(context)
-
-        return active_mesh_object is not None
-
-    # TODO: Open filebrowser
     def execute(self, context):
         preferences = context.preferences
         addon_prefs = preferences.addons["RenderClonkAddon"].preferences
 
-        mesh_objects, active_mesh_object = GetSelectedObjects(context)
+        selected_objects, active_object = GetSelectedObjects(context)
+        if addon_prefs.use_quick_export:
+            objects_path = os.path.join(addon_prefs.content_folder, "Meshes")
+            if os.path.exists(objects_path) == False:
+                os.mkdir(objects_path)
+            export_path = os.path.join(objects_path, f"{active_object.name}.meshblend")
+            Err = export_objects(export_path, selected_objects)
 
-        export_scene = bpy.data.scenes.new(
-            name=f"Export_{active_mesh_object.name}")
-        export_collection = bpy.data.collections.new(
-            name=active_mesh_object.name)
-        try:
-
-            export_scene.view_layers[0].layer_collection.collection.children.link(
-                export_collection)
-            for mesh_object in mesh_objects:
-                if mesh_object.animation_data is not None:
-                    mesh_object.animation_data.action = None # We don't want to export other animations
-                export_collection.objects.link(mesh_object)
-
-            export_collection.asset_mark()
-
-            data_blocks = set()
-            data_blocks.add(export_scene)
-            meshes_path = os.path.join(addon_prefs.content_folder, "Meshes")
-            if os.path.exists(meshes_path) == False:
-                os.mkdir(meshes_path)
-
-            export_path = os.path.join(
-                meshes_path, f"{active_mesh_object.name}.meshblend")
-
-            bpy.data.libraries.write(export_path, data_blocks, fake_user=True)
+            if Err is not None:
+                self.report({"ERROR"}, f"{Err}")
+                return {"CANCELLED"}
+            
             self.report(
-                {"INFO"}, f"Exported mesh \'{active_mesh_object.name}\' successfully to \'{meshes_path}\'")
+                {"INFO"}, f"Exported mesh \'{active_object.name}\' successfully to \'{objects_path}\'")
 
-        except BaseException as Err:
+        else:
+            if context.scene.lastfilepath is None or context.scene.lastfilepath == "":
+                context.scene.lastfilepath = addon_prefs.content_folder
+            export_path = os.path.join(context.scene.lastfilepath, f"{active_object.name}.meshblend")
+            bpy.ops.object.open_exportfilebrowser("INVOKE_DEFAULT", filepath=export_path)
+
+        return {'FINISHED'}
+
+class OT_ExportObjectFilebrowser(bpy.types.Operator, ExportHelper):
+    bl_idname = "object.open_exportfilebrowser"
+    bl_label = "Export Object(s)"
+
+    filter_glob: StringProperty(default="*.mesh*", options={"HIDDEN"})
+    filename_ext: StringProperty(default=".meshblend", options={"HIDDEN"})
+
+    def execute(self, context):
+        print(self.filepath)
+        modular_filepath = Path(self.filepath)
+
+        if len(modular_filepath.suffix) == 0:
+            self.filepath += ".meshblend"
+
+        selected_objects, active_object = GetSelectedObjects(context)
+        Err = export_objects(self.filepath, selected_objects)
+
+        if Err is not None:
             self.report({"ERROR"}, f"{Err}")
             return {"CANCELLED"}
-
-        finally:
-            bpy.data.collections.remove(export_collection)
-            bpy.data.scenes.remove(export_scene)
-
+        
+        self.report({"INFO"}, f"Exported mesh \'{active_object.name}\' successfully to \'{self.filepath}\'")
         return {'FINISHED'}
 
 
 class OT_AnimFilebrowser(bpy.types.Operator, ImportHelper):
     bl_idname = "anim.open_filebrowser"
     bl_label = "Import Action (.anim/.animblend)"
+    bl_options = {'UNDO'}
 
     filter_glob: StringProperty(default="*.anim*", options={"HIDDEN"})
 
@@ -572,10 +618,6 @@ class OT_AnimFilebrowser(bpy.types.Operator, ImportHelper):
                                    description="Import tool objects if the action references any")
 
     def execute(self, context):
-        parent_path = Path(self.filepath).parents[1]
-        collect_clonk_content_files(parent_path)
-        global found_meshes
-
         print(self.filepath)
 
         if ".anim" in self.filepath:
@@ -591,6 +633,9 @@ class OT_AnimFilebrowser(bpy.types.Operator, ImportHelper):
             if anim_data: # Legacy import
                 new_entry = MetaData.MakeActionEntry(anim_data)
                 if self.import_tools:
+                    parent_path = Path(self.filepath).parents[1]
+                    collect_clonk_content_files(parent_path)
+                    global found_meshes
                     _ImportToolsIfAnyLegacy(new_entry, anim_data, found_meshes)
 
                 if anim_data.get("ERROR"):
@@ -603,6 +648,48 @@ class OT_AnimFilebrowser(bpy.types.Operator, ImportHelper):
         context.scene.lastfilepath = self.filepath
         return {'FINISHED'}
 
+def export_action(filepath, context):
+    modular_filepath = Path(filepath)
+    filename = modular_filepath.stem
+    export_scene = bpy.data.scenes.new(name=f"Export_{filename}")
+    export_collection = bpy.data.collections.new(name=filename)
+
+    try:
+        for anim_target in MetaData.get_anim_targets():
+            if anim_target:
+                if anim_target.animation_data:
+                    anim_target.animation_data.action = None # We don't want to export other animations
+                
+                #if anim_target.type == "ARMATURE":
+                    #anim_target.data.pose_position = "REST"
+
+        export_scene.view_layers[0].layer_collection.collection.children.link(
+            export_collection)
+
+        new_entry = export_scene.animlist.add()
+        selected_entry = context.scene.action_meta_data_index
+
+        for key, value in context.scene.animlist[selected_entry].items():
+            #print(str(key))
+            new_entry[key] = value
+
+        data_blocks = set()
+        data_blocks.add(export_scene)
+
+        bpy.data.libraries.write(filepath, data_blocks, fake_user=True)
+
+    except BaseException as Err:
+        return Err
+
+    finally:
+        bpy.data.collections.remove(export_collection)
+        bpy.data.scenes.remove(export_scene)
+
+        #for anim_target in MetaData.get_anim_targets():
+            #if anim_target:
+                #if anim_target.type == "ARMATURE":
+                    #anim_target.data.pose_position = "POSE"
+
 
 class OT_AnimExport(bpy.types.Operator):
     bl_idname = "anim.export"
@@ -612,9 +699,6 @@ class OT_AnimExport(bpy.types.Operator):
     def poll(cls, context):
         preferences = context.preferences
         addon_prefs = preferences.addons["RenderClonkAddon"].preferences
-
-        if addon_prefs.content_folder == "" or os.path.exists(addon_prefs.content_folder) == False:
-            return False
 
         action_name = MetaData.GetActionNameFromIndex(
             bpy.context.scene.action_meta_data_index)
@@ -634,43 +718,51 @@ class OT_AnimExport(bpy.types.Operator):
             self.report({"ERROR"}, "No valid action entry selected.")
             return {"CANCELLED"}
 
-        export_scene = bpy.data.scenes.new(
-            name=f"Export_{action_name}")
-        export_collection = bpy.data.collections.new(
-            name=action_name)
-
-        try:
-            export_scene.view_layers[0].layer_collection.collection.children.link(
-                export_collection)
-
-            new_entry = export_scene.animlist.add()
-            selected_entry = context.scene.action_meta_data_index
-
-            for key, value in context.scene.animlist[selected_entry].items():
-                print(str(key))
-                new_entry[key] = value
-
-            data_blocks = set()
-            data_blocks.add(export_scene)
+        if addon_prefs.use_quick_export:
             actions_path = os.path.join(addon_prefs.content_folder, "Actions")
             if os.path.exists(actions_path) == False:
                 os.mkdir(actions_path)
 
-            export_path = os.path.join(
-                actions_path, f"{action_name}.animblend")
+            export_path = os.path.join(actions_path, f"{action_name}.animblend")
 
-            bpy.data.libraries.write(export_path, data_blocks, fake_user=True)
-            self.report(
-                {"INFO"}, f"Exported action \'{action_name}\' successfully to \'{export_path}\'")
+            Err = export_action(export_path, context)
+            if Err is not None:
+                self.report({"ERROR"}, f"{Err}")
+                return {"CANCELLED"}
+        
+            self.report({"INFO"}, f"Exported action \'{action_name}\' successfully to \'{self.filepath}\'")
 
-        except BaseException as Err:
+        else:
+            if context.scene.lastfilepath is None or context.scene.lastfilepath == "":
+                context.scene.lastfilepath = addon_prefs.content_folder
+            export_path = os.path.join(context.scene.lastfilepath, f"{action_name}.animblend")
+            bpy.ops.anim.open_exportfilebrowser("INVOKE_DEFAULT", filepath=export_path)
+
+        return {'FINISHED'}
+
+
+class OT_ExportAnimFilebrowser(bpy.types.Operator, ExportHelper):
+    bl_idname = "anim.open_exportfilebrowser"
+    bl_label = "Export Action"
+
+    filter_glob: StringProperty(default="*.anim*", options={"HIDDEN"})
+    filename_ext: StringProperty(default=".animblend", options={"HIDDEN"})
+
+    def execute(self, context):
+        print(self.filepath)
+        modular_filepath = Path(self.filepath)
+
+        if len(modular_filepath.suffix) == 0:
+            self.filepath += ".animblend"
+
+        Err = export_action(self.filepath, context)
+
+        if Err is not None:
             self.report({"ERROR"}, f"{Err}")
             return {"CANCELLED"}
-
-        finally:
-            bpy.data.collections.remove(export_collection)
-            bpy.data.scenes.remove(export_scene)
-
+        
+        action_name = MetaData.GetActionNameFromIndex(context.scene.action_meta_data_index)
+        self.report({"INFO"}, f"Exported action \'{action_name}\' successfully to \'{self.filepath}\'")
         return {'FINISHED'}
 
 

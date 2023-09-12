@@ -969,6 +969,8 @@ registered_classes = [
     ClonkPort.OT_AnimFilebrowser,
     ClonkPort.OT_MeshExport,
     ClonkPort.OT_AnimExport,
+    ClonkPort.OT_ExportObjectFilebrowser,
+    ClonkPort.OT_ExportAnimFilebrowser,
     ClonkPort.OT_ActListFilebrowser,
     ClonkPort.OT_ActMapFilebrowser,
     ClonkPort.OT_PictureFilebrowser,
