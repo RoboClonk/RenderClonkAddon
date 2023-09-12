@@ -811,6 +811,7 @@ class OT_PictureFilebrowser(bpy.types.Operator, ImportHelper):
 class OT_ActListFilebrowser(bpy.types.Operator, ImportHelper):
     bl_idname = "act.open_filebrowser"
     bl_label = "Import Actionlist (.act)"
+    bl_options = {'UNDO'}
 
     filter_glob: StringProperty(default="*.act", options={"HIDDEN"})
     create_action_entry: BoolProperty(
@@ -854,6 +855,7 @@ class OT_ActListFilebrowser(bpy.types.Operator, ImportHelper):
 class OT_ActMapFilebrowser(bpy.types.Operator, ImportHelper):
     bl_idname = "actmap.open_filebrowser"
     bl_label = "Import ActMap.txt"
+    bl_options = {'UNDO'}
 
     filter_glob: StringProperty(default="*.txt", options={"HIDDEN"})
 
