@@ -128,7 +128,7 @@ class MAIN_PT_SettingsPanel(bpy.types.Panel):
         selected_objects, active_selected_object = ClonkPort.GetSelectedObjects(
             context)
         dots = "" if addon_prefs.use_quick_export else "..."
-        mesh_export_label = "Export Object: none selected"
+        mesh_export_label = "Export Object: None selected"
         if active_selected_object is not None:
             mesh_export_label = f"Export Object: \'{active_selected_object.name}\'{dots}" if len(selected_objects) <= 1 else f"Export {len(selected_objects)} objects together as \'{active_selected_object.name}\'{dots}"
         layout.operator(ClonkPort.OT_MeshExport.bl_idname, text=mesh_export_label, icon="EXPORT")
@@ -136,11 +136,11 @@ class MAIN_PT_SettingsPanel(bpy.types.Panel):
 
         action_name = MetaData.GetActionNameFromIndex(
             bpy.context.scene.action_meta_data_index)
-        if action_name != "":
-            layout.operator(ClonkPort.OT_AnimExport.bl_idname,
-                            text=f"Export Action: {action_name}{dots}", icon="EXPORT")
-        else:
-            layout.label(text="No valid action selected ..")
+        action_export_label = f"Export Action: {action_name}{dots}"
+        if action_name == "":
+            action_export_label = "Export Action: None selected"
+       
+        layout.operator(ClonkPort.OT_AnimExport.bl_idname, text=action_export_label, icon="EXPORT")
 
 
 class Menu_Button(bpy.types.Operator):
