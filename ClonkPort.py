@@ -74,8 +74,7 @@ def _ImportExtraMesh(meshname, meshfiles):
         meshfile = Path(meshfilespath)
         if meshfile.stem == meshname:
             clonk_objects = MeshPort.import_mesh(meshfilespath)
-            new_objects = reuse_rigs_and_parent_objects(
-                clonk_objects, reuse_rig=True)
+            new_objects = reuse_rigs_and_parent_objects(clonk_objects)
 
             return new_objects
 
@@ -133,7 +132,7 @@ def LoadAction(path, animation_target, force_import_action=False, import_tools=T
                 bpy.context.view_layer.layer_collection.collection.objects.link(tool_objects[0])
 
             MetaData.replace_duplicate_materials(tool_objects)
-            reuse_rigs_and_parent_objects(tool_objects, True)
+            reuse_rigs_and_parent_objects(tool_objects)
 
         # Remove them again
         else:
@@ -406,11 +405,11 @@ def add_anim_target(in_object):
     if bpy.context.scene.anim_target_enum == "1_Object":
         bpy.context.scene.anim_target_enum = "2_Collection"
 
-def reuse_rigs_and_parent_objects(in_objects, reuse_rig):
-    # On import there is the posibility to import armatures as well. There could even be several armatures that are linked to individual objects.
+def reuse_rigs_and_parent_objects(in_objects):
+    # On import there is the possibility to import armatures as well. There could even be several armatures that are linked to individual objects.
     # Furthermore, we usually want wo reuse the rigs we have, since the imported rig might be identical to the clonk rig (or other rigs in the scene already)
     # So we compare the imported rigs with the ones available and then decide what rigs to keep.
-    clonk_rig = GetOrAppendClonkRig(reuse_rig)
+    clonk_rig = GetOrAppendClonkRig(reuse_rig=True)
 
     objects_without_rig = []
     armatures_to_object = {}
@@ -475,22 +474,19 @@ class OT_MeshFilebrowser(bpy.types.Operator, ImportHelper):
 
     filter_glob: StringProperty(default="*.mesh*", options={"HIDDEN"})
 
-    parent_to_clonk_rig: BoolProperty(name="Parent to Clonk Rig", default=True,
-                                      description="This will parent the mesh to the clonk rig and apply an Armature Modifier")
-    reuse_clonk_rig: BoolProperty(name="Reuse Clonk Rig", default=True,
-                                  description="Whether an existing clonk rig should be used or a new one created")
+    parent_to_existing_rigs: BoolProperty(name="Parent to existing rigs", default=True,
+                                      description="This will parent the objects to existing (matching) rigs (anim targets) and apply an Armature Modifier (if necessary)")
 
     def execute(self, context):
         print(self.filepath)
 
         if ".mesh" in self.filepath:
-            if self.parent_to_clonk_rig:
+            if self.parent_to_existing_rigs:
                 collection: bpy.types.Collection = None
                 if bpy.context.scene.always_rendered_objects != None:
                     collection = bpy.context.scene.always_rendered_objects
                 clonk_objects = MeshPort.import_mesh(self.filepath, collection)
-                clonk_objects = reuse_rigs_and_parent_objects(
-                    clonk_objects, self.reuse_clonk_rig)
+                clonk_objects = reuse_rigs_and_parent_objects(clonk_objects)
             else:
                 clonk_objects = MeshPort.import_mesh(self.filepath)
 
