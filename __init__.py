@@ -115,29 +115,30 @@ class MAIN_PT_SettingsPanel(bpy.types.Panel):
         layout.label(text="Export Clonk data")
         preferences = context.preferences
         addon_prefs = preferences.addons[__name__].preferences
-        if addon_prefs.content_folder == "":
-            layout.label(
-                text="Please set your content folder path in the preferences.", icon="INFO")
-            return
-        if os.path.exists(addon_prefs.content_folder) == False:
-            layout.label(
-                text="Content folder path in preferences is invalid.", icon="ERROR")
-            return
+        if addon_prefs.use_quick_export:
+            if addon_prefs.content_folder == "":
+                layout.label(
+                    text="Please set your content folder path in the preferences to use quick export.", icon="INFO")
+                return
+            elif os.path.exists(addon_prefs.content_folder) == False:
+                layout.label(
+                    text="Content folder path in preferences is invalid.", icon="ERROR")
+                return
 
         selected_objects, active_selected_object = ClonkPort.GetSelectedObjects(
             context)
+        dots = "" if addon_prefs.use_quick_export else "..."
+        mesh_export_label = "Export Object: none selected"
         if active_selected_object is not None:
-            mesh_export_label = f"Export Object: \'{active_selected_object.name}\'" if len(selected_objects) <= 1 else f"Export {len(selected_objects)} objects together as \'{active_selected_object.name}\'"
-            layout.operator(ClonkPort.OT_MeshExport.bl_idname,
-                            text=mesh_export_label, icon="EXPORT")
-        else:
-            layout.label(text="Nothing selected ..", icon="ERROR")
+            mesh_export_label = f"Export Object: \'{active_selected_object.name}\'{dots}" if len(selected_objects) <= 1 else f"Export {len(selected_objects)} objects together as \'{active_selected_object.name}\'{dots}"
+        layout.operator(ClonkPort.OT_MeshExport.bl_idname, text=mesh_export_label, icon="EXPORT")
+    
 
         action_name = MetaData.GetActionNameFromIndex(
             bpy.context.scene.action_meta_data_index)
         if action_name != "":
             layout.operator(ClonkPort.OT_AnimExport.bl_idname,
-                            text=f"Export Action: {action_name}", icon="EXPORT")
+                            text=f"Export Action: {action_name}{dots}", icon="EXPORT")
         else:
             layout.label(text="No valid action selected ..")
 
@@ -941,6 +942,11 @@ class RenderClonkPreferences(bpy.types.AddonPreferences):
         subtype='FILE_PATH',
         default=''
     )
+    use_quick_export: bpy.props.BoolProperty(
+        name="Use quick export",
+        description="This will export objects and actions immediately to the content folder path",
+        default=False,
+    )
     number: bpy.props.IntProperty(
         name="Example Number",
         default=4,
@@ -953,6 +959,7 @@ class RenderClonkPreferences(bpy.types.AddonPreferences):
     def draw(self, context):
         layout = self.layout
         layout.prop(self, "content_folder")
+        #layout.prop(self, "use_quick_export")
 
 
 registered_classes = [
