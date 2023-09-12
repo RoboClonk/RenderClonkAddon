@@ -330,7 +330,7 @@ def prepare_action(action_entry: MetaData.ActionMetaData):
 
     bpy.context.scene.camera = get_action_camera(action_entry)
 
-    if action_entry.override_camera_shift:
+    if action_entry.override_camera_shift and bpy.context.scene.camera:
         bpy.context.scene.camera.data.shift_x = 1.0/x_dim * action_entry.camera_shift_x
         bpy.context.scene.camera.data.shift_y = 1.0/y_dim * -action_entry.camera_shift_y
 
@@ -431,6 +431,9 @@ def ResetOverlayMaterials(materials_to_replace):
 
 def GetOrthoScale(anim_entry):
     action_camera = get_action_camera(anim_entry)
+    if action_camera is None:
+        return 1.0
+    
     if action_camera.data.sensor_fit == "VERTICAL":
         zoom_multiplier = anim_entry.height / bpy.context.scene.render.resolution_y
     elif action_camera.data.sensor_fit == "HORIZONTAL":
@@ -473,6 +476,9 @@ def IsRenderHorizontal():
 def AdjustOrthoScale(anim_entry):
     default_camera_zoom = {}
     action_camera = get_action_camera(anim_entry)
+
+    if action_camera is None:
+        return default_camera_zoom
 
     if anim_entry.override_resolution and anim_entry.render_type_enum == "Spriteanimation" and action_camera.data.type == "ORTHO":
         default_camera_zoom[action_camera] = action_camera.data.ortho_scale
@@ -921,8 +927,9 @@ class PREVIEW_OT(bpy.types.Operator):
         self.base_y = bpy.context.scene.render.resolution_y
         self.default_camera = bpy.context.scene.camera
         action_camera = get_action_camera(action_entry)
-        self.default_camera_shift_x = action_camera.data.shift_x
-        self.default_camera_shift_y = action_camera.data.shift_y
+        if action_camera:
+            self.default_camera_shift_x = action_camera.data.shift_x
+            self.default_camera_shift_y = action_camera.data.shift_y
         self.default_camera_zoom = AdjustOrthoScale(action_entry)
 
         global preview_active
@@ -958,7 +965,8 @@ class PREVIEW_OT(bpy.types.Operator):
 
     def reset_ortho_scale(self):
         for camera, default_ortho_scale in self.default_camera_zoom.items():
-            camera.data.ortho_scale = default_ortho_scale
+            if camera:
+                camera.data.ortho_scale = default_ortho_scale
 
         self.default_camera_zoom.clear()
 
@@ -978,8 +986,9 @@ class PREVIEW_OT(bpy.types.Operator):
         bpy.context.scene.render.resolution_y = self.base_y
         bpy.context.scene.render.use_border = False
         bpy.context.scene.render.use_crop_to_border = False
-        bpy.context.scene.camera.data.shift_x = self.default_camera_shift_x
-        bpy.context.scene.camera.data.shift_y = self.default_camera_shift_y
+        if bpy.context.scene.camera:
+            bpy.context.scene.camera.data.shift_x = self.default_camera_shift_x
+            bpy.context.scene.camera.data.shift_y = self.default_camera_shift_y
         bpy.context.scene.camera = self.default_camera
         self.reset_ortho_scale()
 
@@ -1017,8 +1026,9 @@ class PREVIEW_OT(bpy.types.Operator):
                 if event.type in {"DOWN_ARROW"}:
                     self.current_action_entry.height -= 1
 
-            bpy.context.scene.camera.data.show_passepartout = True
-            bpy.context.scene.camera.data.passepartout_alpha = 0.6
+            if bpy.context.scene.camera:
+                bpy.context.scene.camera.data.show_passepartout = True
+                bpy.context.scene.camera.data.passepartout_alpha = 0.6
 
             self.reset()
             self.prepare_preview()
