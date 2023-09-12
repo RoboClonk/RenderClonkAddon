@@ -409,7 +409,7 @@ def reuse_rigs_and_parent_objects(in_objects):
     # On import there is the possibility to import armatures as well. There could even be several armatures that are linked to individual objects.
     # Furthermore, we usually want wo reuse the rigs we have, since the imported rig might be identical to the clonk rig (or other rigs in the scene already)
     # So we compare the imported rigs with the ones available and then decide what rigs to keep.
-    clonk_rig = GetOrAppendClonkRig(reuse_rig=True)
+    clonk_rig = GetOrAppendClonkRig(ReuseOld=True)
 
     objects_without_rig = []
     armatures_to_object = {}
