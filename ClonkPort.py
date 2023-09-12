@@ -551,7 +551,7 @@ class OT_MeshExport(bpy.types.Operator):
 
     def execute(self, context):
         preferences = context.preferences
-        addon_prefs = preferences.addons["RenderClonkAddon"].preferences
+        addon_prefs = preferences.addons[__package__].preferences
 
         selected_objects, active_object = GetSelectedObjects(context)
         if addon_prefs.use_quick_export:
@@ -693,9 +693,6 @@ class OT_AnimExport(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        preferences = context.preferences
-        addon_prefs = preferences.addons["RenderClonkAddon"].preferences
-
         action_name = MetaData.GetActionNameFromIndex(
             bpy.context.scene.action_meta_data_index)
 
@@ -706,7 +703,7 @@ class OT_AnimExport(bpy.types.Operator):
 
     def execute(self, context):
         preferences = context.preferences
-        addon_prefs = preferences.addons["RenderClonkAddon"].preferences
+        addon_prefs = preferences.addons[__package__].preferences
 
         action_name = MetaData.GetActionNameFromIndex(
             context.scene.action_meta_data_index)
