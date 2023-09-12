@@ -238,7 +238,7 @@ def import_mesh(path, insert_collection=None):
                         if reuse_materials:
                             # Just ignore the next lines about materials
                             mode = mesh_import_state.EMPTY
-                            current_mat_name == ""
+                            current_mat_name = ""
 
                     elif param_name == "Color":
                         bpy.data.materials.get(current_mat_name).node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = [
@@ -332,14 +332,13 @@ def import_mesh(path, insert_collection=None):
                         pass
                 
                 if mode == mesh_import_state.FACEMATS:
-                    list = ReadIntList(line)
+                    mat_list = ReadIntList(line)
                     list_index = 0
-                    for material_index in list:
+                    for material_index in mat_list:
                         new_object.data.polygons[list_index].material_index = material_index
                         list_index += 1
 
                 # TODO: Load Modifiers
-
                 if mode == mesh_import_state.MODIFIERS:
                     param_name, values = GetParameters(line)
                     print("Loading modifiers is not supported yet. " +
