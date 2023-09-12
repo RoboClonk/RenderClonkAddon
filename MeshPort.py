@@ -112,7 +112,7 @@ def lock_object(object, is_locked=True):
     object.lock_scale = [is_locked, is_locked, is_locked]
 
 
-def import_mesh(path, insert_collection=None):
+def import_mesh(path, insert_collection=None, reuse_materials=True):
     meshpath = Path(path)
     print('Importing "' + path + '"')
     filename = meshpath.stem
@@ -133,7 +133,8 @@ def import_mesh(path, insert_collection=None):
             else:
                 insert_collection.objects.link(new_object)
 
-        MetaData.replace_duplicate_materials(data_to.objects)
+        if reuse_materials:
+            MetaData.replace_duplicate_materials(data_to.objects)
 
         return data_to.objects # Return all objects and filter later
 
@@ -222,15 +223,14 @@ def import_mesh(path, insert_collection=None):
                     param_name, values = GetParameters(line)
                     if param_name == "Name":
 
-                        reuse_materials = False
                         current_mat_name = values[0][0:-1]
                         mat: bpy.types.Material = None
-                        if bpy.data.materials.find(current_mat_name) > -1:
+                        if bpy.data.materials.find(current_mat_name) > -1 and reuse_materials:
                             mat = bpy.data.materials[current_mat_name]
-                            reuse_materials = True
                         else:
                             mat = bpy.data.materials.new(name=current_mat_name)
                             mat.use_nodes = True
+                            reuse_materials = False
 
                         current_mat_name = mat.name
                         new_object.data.materials.append(mat)

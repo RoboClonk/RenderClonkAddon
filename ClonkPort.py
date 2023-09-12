@@ -66,14 +66,14 @@ def collect_clonk_content_files(path):
     print("Looking for Data.." + path)
 
 
-def _ImportExtraMesh(meshname, meshfiles):
+def _ImportExtraMesh(meshname, meshfiles, reuse_materials=True):
     if bpy.data.objects.find(meshname) > -1:
         return [bpy.data.objects[meshname]]
 
     for meshfilespath in meshfiles:
         meshfile = Path(meshfilespath)
         if meshfile.stem == meshname:
-            clonk_objects = MeshPort.import_mesh(meshfilespath)
+            clonk_objects = MeshPort.import_mesh(meshfilespath, reuse_materials=reuse_materials)
             new_objects = reuse_rigs_and_parent_objects(clonk_objects)
 
             return new_objects
@@ -81,13 +81,13 @@ def _ImportExtraMesh(meshname, meshfiles):
     return []
 
 
-def _ImportToolsIfAnyLegacy(action_entry, animdata, meshfiles):
+def _ImportToolsIfAnyLegacy(action_entry, animdata, meshfiles, reuse_materials=True):
     tool1 = []
     tool2 = []
     if animdata.get("Tool1"):
-        tool1 = _ImportExtraMesh(animdata["Tool1"], meshfiles)
+        tool1 = _ImportExtraMesh(animdata["Tool1"], meshfiles, reuse_materials=reuse_materials)
     if animdata.get("Tool2"):
-        tool2 = _ImportExtraMesh(animdata["Tool2"], meshfiles)
+        tool2 = _ImportExtraMesh(animdata["Tool2"], meshfiles, reuse_materials=reuse_materials)
 
     if action_entry == None:
         return
@@ -111,7 +111,7 @@ def _ImportToolsIfAnyLegacy(action_entry, animdata, meshfiles):
             action_entry.additional_object = tool2[0]
 
 
-def LoadAction(path, animation_target, force_import_action=False, import_tools=True):
+def LoadAction(path, animation_target, force_import_action=False, import_tools=True, reuse_materials=True):
     if ".animblend" in path or ".anim.blend" in path:
 
         with bpy.data.libraries.load(path) as (data_from, data_to):
@@ -131,7 +131,8 @@ def LoadAction(path, animation_target, force_import_action=False, import_tools=T
             elif len(tool_objects) == 1:
                 bpy.context.view_layer.layer_collection.collection.objects.link(tool_objects[0])
 
-            MetaData.replace_duplicate_materials(tool_objects)
+            if reuse_materials:
+                MetaData.replace_duplicate_materials(tool_objects)
             reuse_rigs_and_parent_objects(tool_objects)
 
         # Remove them again
@@ -170,7 +171,7 @@ def get_animfilemap(animfiles):
     return animfilemap
 
 
-def ImportActList(path, animfiles, meshfiles, target, create_entry, import_tools):
+def ImportActList(path, animfiles, meshfiles, target, create_entry, import_tools, reuse_materials=True):
     print("Read act " + path)
     file = open(path, "r")
     lines = file.readlines()
@@ -192,14 +193,14 @@ def ImportActList(path, animfiles, meshfiles, target, create_entry, import_tools
             continue
 
         if animfilemap.get(line) != None:
-            anim_data = LoadAction(animfilemap[line], target, import_tools=import_tools)
+            anim_data = LoadAction(animfilemap[line], target, import_tools=import_tools, reuse_materials=reuse_materials)
 
             if anim_data: # Legacy import
                 new_entry = None
                 if create_entry:
                     new_entry = MetaData.MakeActionEntry(anim_data)
                 if import_tools:
-                    _ImportToolsIfAnyLegacy(new_entry, anim_data, meshfiles)
+                    _ImportToolsIfAnyLegacy(new_entry, anim_data, meshfiles, reuse_materials=reuse_materials)
 
         else:
             animations_not_found.append(line)
@@ -216,7 +217,7 @@ def ImportActList(path, animfiles, meshfiles, target, create_entry, import_tools
 
 
 # ActMap.txt
-def ImportActMap(path, animfiles, meshfiles, target, create_entry, import_tools):
+def ImportActMap(path, animfiles, meshfiles, target, create_entry, import_tools, reuse_materials=True):
     print("Read actmap " + path)
     file = open(path, "r")
     actmap, messagetype, message = IniPort.Read(path)
@@ -232,14 +233,14 @@ def ImportActMap(path, animfiles, meshfiles, target, create_entry, import_tools)
         action = section["Name"]
 
         if animfilemap.get(action) != None:
-            anim_data = LoadAction(animfilemap[action], target, import_tools=import_tools)
+            anim_data = LoadAction(animfilemap[action], target, import_tools=import_tools, reuse_materials=reuse_materials)
 
             if anim_data: # Legacy import
                 new_entry = None
                 if create_entry:
                     new_entry = MetaData.MakeActionEntry(anim_data)
                 if import_tools:
-                    _ImportToolsIfAnyLegacy(new_entry, anim_data, meshfiles)
+                    _ImportToolsIfAnyLegacy(new_entry, anim_data, meshfiles, reuse_materials=reuse_materials)
 
         else:
             animations_not_found.append(action)
@@ -477,6 +478,9 @@ class OT_MeshFilebrowser(bpy.types.Operator, ImportHelper):
     parent_to_existing_rigs: BoolProperty(name="Parent to existing rigs", default=True,
                                       description="This will parent the objects to existing (matching) rigs (anim targets) and apply an Armature Modifier (if necessary)")
 
+    reuse_materials: BoolProperty(name="Reuse materials", default=True,
+                                   description="Decide whether to search for existing materials and replace imported ones.")
+
     def execute(self, context):
         print(self.filepath)
 
@@ -485,10 +489,10 @@ class OT_MeshFilebrowser(bpy.types.Operator, ImportHelper):
                 collection: bpy.types.Collection = None
                 if bpy.context.scene.always_rendered_objects != None:
                     collection = bpy.context.scene.always_rendered_objects
-                clonk_objects = MeshPort.import_mesh(self.filepath, collection)
+                clonk_objects = MeshPort.import_mesh(self.filepath, collection, reuse_materials=self.reuse_materials)
                 clonk_objects = reuse_rigs_and_parent_objects(clonk_objects)
             else:
-                clonk_objects = MeshPort.import_mesh(self.filepath)
+                clonk_objects = MeshPort.import_mesh(self.filepath, reuse_materials=self.reuse_materials)
 
         else:
             print(self.filepath + " is no Clonk mesh!")
@@ -612,6 +616,9 @@ class OT_AnimFilebrowser(bpy.types.Operator, ImportHelper):
                                       description="Import action although there is an action with the same name in blender")
     import_tools: BoolProperty(name="Import Tool Objects", default=True,
                                    description="Import tool objects if the action references any")
+    
+    reuse_materials_on_tools: BoolProperty(name="Reuse tool materials", default=True,
+                                   description="Decide whether to search for existing materials and replace imported ones.")
 
     def execute(self, context):
         print(self.filepath)
@@ -624,7 +631,7 @@ class OT_AnimFilebrowser(bpy.types.Operator, ImportHelper):
                 return {"CANCELLED"}
 
             anim_data = LoadAction(
-                self.filepath, clonk_rig, self.force_import_action, import_tools=self.import_tools)
+                self.filepath, clonk_rig, self.force_import_action, import_tools=self.import_tools, reuse_materials=self.reuse_materials_on_tools)
             
             if anim_data: # Legacy import
                 new_entry = MetaData.MakeActionEntry(anim_data)
@@ -632,7 +639,7 @@ class OT_AnimFilebrowser(bpy.types.Operator, ImportHelper):
                     parent_path = Path(self.filepath).parents[1]
                     collect_clonk_content_files(parent_path)
                     global found_meshes
-                    _ImportToolsIfAnyLegacy(new_entry, anim_data, found_meshes)
+                    _ImportToolsIfAnyLegacy(new_entry, anim_data, found_meshes, reuse_materials=self.reuse_materials_on_tools)
 
                 if anim_data.get("ERROR"):
                     self.report({"ERROR"}, f"" + anim_data["ERROR"])
@@ -810,6 +817,8 @@ class OT_ActListFilebrowser(bpy.types.Operator, ImportHelper):
         name="Create Action Entries", default=True, description="Create entries in the actions list")
     import_tool_mesh: BoolProperty(name="Import Tool Meshes", default=True,
                                    description="Import tool meshes if the actions reference any")
+    reuse_materials_on_tools: BoolProperty(name="Reuse tool materials", default=True,
+                                   description="Decide whether to search for existing materials and replace imported ones.")
 
     def draw(self, context):
         layout = self.layout
@@ -831,7 +840,7 @@ class OT_ActListFilebrowser(bpy.types.Operator, ImportHelper):
                 raise AssertionError("No Collection named ClonkRig found.")
             bpy.context.scene.always_rendered_objects = bpy.data.collections["ClonkRig"]
             reporttype, message = ImportActList(self.filepath, found_actions, found_meshes,
-                                                bpy.context.scene.anim_target, self.create_action_entry, self.import_tool_mesh)
+                                                bpy.context.scene.anim_target, self.create_action_entry, self.import_tool_mesh, reuse_materials=self.reuse_materials_on_tools)
 
             self.report({reporttype}, "%s" % (message))
 
@@ -854,6 +863,8 @@ class OT_ActMapFilebrowser(bpy.types.Operator, ImportHelper):
         name="Create Action Entries", default=True, description="Create entries in the actions list")
     import_tool_mesh: BoolProperty(name="Import Tool Meshes", default=True,
                                    description="Import tool meshes if the actions reference any")
+    reuse_materials_on_tools: BoolProperty(name="Reuse tool materials", default=True,
+                                   description="Decide whether to search for existing materials and replace imported ones.")
 
     def execute(self, context):
         extension = Path(self.filepath).name
@@ -874,7 +885,7 @@ class OT_ActMapFilebrowser(bpy.types.Operator, ImportHelper):
                 return {"CANCELLED"}
 
             reporttype, message = ImportActMap(self.filepath, found_actions, found_meshes,
-                                               bpy.context.scene.anim_target, self.create_action_entry, self.import_tool_mesh)
+                                               bpy.context.scene.anim_target, self.create_action_entry, self.import_tool_mesh, reuse_materials=self.reuse_materials_on_tools)
 
             self.report({reporttype}, f"{message}")
 
