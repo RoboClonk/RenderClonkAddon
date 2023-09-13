@@ -359,10 +359,28 @@ def parent_objects_to_rig(in_objects, rig):
             continue # Ignore objects that are parented to other objects. So we don't destroy normal object parenting.
 
         clonk_object.parent = rig
-        clonk_object.matrix_parent_inverse = rig.matrix_world.inverted()
+        
         if clonk_object.parent_type == "BONE":
+            if clonk_object.parent_bone is None:
+                clonk_object.parent_type = "OBJECT"
+                continue
+            if clonk_object.parent_bone not in rig.data.bones:
+                print(f"Bone {clonk_object.parent_bone} not available in {rig.name}. Transform of {clonk_object.name} may be incorrect.")
+                continue
+
+            parent_bone = rig.data.bones[clonk_object.parent_bone]
+
+            # Relative Parenting: inverse matrix depends on the world position of the rig
+            if parent_bone.use_relative_parent:
+                clonk_object.matrix_parent_inverse = rig.matrix_world.inverted()
+            # Normal Parenting: inverse matrix depends on the world position of the bone
+            else:
+                translation_matrix = mathutils.Matrix.Translation(parent_bone.tail - parent_bone.head)
+                clonk_object.matrix_parent_inverse = (rig.matrix_world @ translation_matrix @ parent_bone.matrix_local).inverted()
+            
             continue
 
+        clonk_object.matrix_parent_inverse = rig.matrix_world.inverted()
         armature_modifier = get_armature_modifier(clonk_object)
         if armature_modifier is None:
             armature_modifier = clonk_object.modifiers.new(
@@ -651,6 +669,7 @@ class OT_AnimFilebrowser(bpy.types.Operator, ImportHelper):
         context.scene.lastfilepath = self.filepath
         return {'FINISHED'}
 
+
 def export_action(filepath, context):
     modular_filepath = Path(filepath)
     filename = modular_filepath.stem
@@ -663,9 +682,6 @@ def export_action(filepath, context):
                 if anim_target.animation_data:
                     anim_target.animation_data.action = None # We don't want to export other animations
                 
-                #if anim_target.type == "ARMATURE":
-                    #anim_target.data.pose_position = "REST"
-
         export_scene.view_layers[0].layer_collection.collection.children.link(
             export_collection)
 
@@ -687,11 +703,6 @@ def export_action(filepath, context):
     finally:
         bpy.data.collections.remove(export_collection)
         bpy.data.scenes.remove(export_scene)
-
-        #for anim_target in MetaData.get_anim_targets():
-            #if anim_target:
-                #if anim_target.type == "ARMATURE":
-                    #anim_target.data.pose_position = "POSE"
 
 
 class OT_AnimExport(bpy.types.Operator):
