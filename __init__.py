@@ -97,7 +97,7 @@ class MAIN_PT_SettingsPanel(bpy.types.Panel):
         layout.separator()
 
         layout.operator(Menu_Button.bl_idname,
-                        text="Import Model...", icon="IMPORT").menu_active = 1
+                        text="Import Object...", icon="IMPORT").menu_active = 1
         layout.operator(Menu_Button.bl_idname, text="Import Action...",
                         icon="ARMATURE_DATA").menu_active = 2
 
@@ -990,8 +990,6 @@ registered_classes = [
 
 
 def register():
-    import bpy.utils.previews
-
     global AddonDirectory
     script_file = os.path.realpath(__file__)
     AddonDirectory = os.path.dirname(script_file)
@@ -1063,12 +1061,16 @@ def unregister():
     del bpy.types.Scene.anim_target
     del bpy.types.Scene.anim_target_enum
     del bpy.types.Scene.anim_target_collection
+    del bpy.types.Scene.always_rendered_objects
     del bpy.types.Scene.action_meta_data_index
     del bpy.types.Scene.animlist
-    del bpy.types.Scene.always_rendered_objects
-    del bpy.types.Scene.lastfilepath
     del bpy.types.Scene.spritesheet_settings
+    del bpy.types.Scene.lastfilepath
+    del bpy.types.Scene.has_applied_rendersettings
+    del bpy.types.Scene.custom_output_dir
     del bpy.types.Scene.scene_render_resolution
+    del bpy.types.Scene.is_rendering_spritesheet
+    del bpy.types.Scene.spritesheet_render_progress
 
 
 if __name__ == "__main__":
