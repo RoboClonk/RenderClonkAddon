@@ -973,6 +973,8 @@ def PrintActmap(path, remove_unused_sections=False):
             return messagetype, message
     else:
         print("No old Actmap.txt found. Creating new..")
+        if os.path.exists(path) == False:
+            os.mkdir(path)
 
     # What section in the file is listed explicitly in the addon?
     remaining_action_entries = valid_action_entries.copy()
@@ -1097,6 +1099,8 @@ def PrintDefCore(path):
             return messagetype, message
     else:
         print("No old DefCore.txt found. Creating new..")
+        if os.path.exists(path) == False:
+            os.mkdir(path)
 
     # Prepare output content
     output_content = []
