@@ -117,42 +117,43 @@ def LoadAction(path, animation_target, force_import_action=False, import_tools=T
         with bpy.data.libraries.load(path) as (data_from, data_to):
             data_to.scenes = data_from.scenes
 
-        new_entry = bpy.context.scene.animlist.add()
+        for imported_entry in data_to.scenes[0].animlist:
+            new_entry = bpy.context.scene.animlist.add()
 
-        for key, value in data_to.scenes[0].animlist[0].items():
-            new_entry[key] = value
+            for key, value in imported_entry.items():
+                new_entry[key] = value
 
-        tool_objects, collection = MetaData.get_action_entry_tools(new_entry)
+            tool_objects, collection = MetaData.get_action_entry_tools(new_entry)
 
-        # These objects get implicitly imported when they are referenced inside an anim blend file.
-        if import_tools:
-            if collection:
-                bpy.context.view_layer.layer_collection.collection.children.link(collection)
-            elif len(tool_objects) == 1:
-                bpy.context.view_layer.layer_collection.collection.objects.link(tool_objects[0])
+            # These objects get implicitly imported when they are referenced inside an anim blend file.
+            if import_tools:
+                if collection:
+                    bpy.context.view_layer.layer_collection.collection.children.link(collection)
+                elif len(tool_objects) == 1:
+                    bpy.context.view_layer.layer_collection.collection.objects.link(tool_objects[0])
 
-            if reuse_materials:
-                MetaData.replace_duplicate_materials(tool_objects)
-            reuse_rigs_and_parent_objects(tool_objects)
+                if reuse_materials:
+                    MetaData.replace_duplicate_materials(tool_objects)
+                reuse_rigs_and_parent_objects(tool_objects)
 
-        # Remove them again
-        else:
-            for tool in tool_objects:
-                if tool:
-                    if tool.type == "MESH":
-                        for material_slot in tool.material_slots:
-                            if material_slot.material:
-                                bpy.data.materials.remove(material_slot.material)
+            # Remove them again
+            else:
+                for tool in tool_objects:
+                    if tool:
+                        if tool.type == "MESH":
+                            for material_slot in tool.material_slots:
+                                if material_slot.material:
+                                    bpy.data.materials.remove(material_slot.material)
 
-                    bpy.data.objects.remove(tool)
-                    if collection:
-                        bpy.data.collections.remove(collection)
+                        bpy.data.objects.remove(tool)
+                        if collection:
+                            bpy.data.collections.remove(collection)
 
         bpy.data.scenes.remove(data_to.scenes[0])
 
         return None
 
-
+    # Legacy action load
     else:
         return AnimPort.LoadActionLegacy(path, animation_target, force_import_action)
 
@@ -670,7 +671,7 @@ class OT_AnimFilebrowser(bpy.types.Operator, ImportHelper):
         return {'FINISHED'}
 
 
-def export_action(filepath, context):
+def export_action(filepath, context, export_all_enabled=False):
     modular_filepath = Path(filepath)
     filename = modular_filepath.stem
     export_scene = bpy.data.scenes.new(name=f"Export_{filename}")
@@ -685,17 +686,31 @@ def export_action(filepath, context):
         export_scene.view_layers[0].layer_collection.collection.children.link(
             export_collection)
 
-        new_entry = export_scene.animlist.add()
-        selected_entry = context.scene.action_meta_data_index
+        exported_actions = False
 
-        for key, value in context.scene.animlist[selected_entry].items():
-            #print(str(key))
-            new_entry[key] = value
+        if export_all_enabled:
+            for anim_entry in context.scene.animlist:
+                if anim_entry.is_used:
+                    new_entry = export_scene.animlist.add()
+                    for key, value in anim_entry.items():
+                        new_entry[key] = value
+                        exported_actions = True
+        else:
+            new_entry = export_scene.animlist.add()
+            selected_entry = context.scene.action_meta_data_index
 
-        data_blocks = set()
-        data_blocks.add(export_scene)
+            for key, value in context.scene.animlist[selected_entry].items():
+                new_entry[key] = value
 
-        bpy.data.libraries.write(filepath, data_blocks, fake_user=True)
+            exported_actions = True
+        
+        if exported_actions:
+            data_blocks = set()
+            data_blocks.add(export_scene)
+
+            bpy.data.libraries.write(filepath, data_blocks, fake_user=True)
+        else:
+            print("No actions exported, since none were enabled.")
 
     except BaseException as Err:
         return Err
@@ -715,6 +730,9 @@ class OT_AnimExport(bpy.types.Operator):
             bpy.context.scene.action_meta_data_index)
 
         if action_name == "":
+            return False
+        
+        if bpy.context.scene.animlist[bpy.context.scene.action_meta_data_index].is_used == False:
             return False
 
         return True
@@ -736,6 +754,7 @@ class OT_AnimExport(bpy.types.Operator):
 
             export_path = os.path.join(actions_path, f"{action_name}.animblend")
 
+            # TODO: Multi export for quick export (Would need more UI and checks)
             Err = export_action(export_path, context)
             if Err is not None:
                 self.report({"ERROR"}, f"{Err}")
@@ -759,6 +778,9 @@ class OT_ExportAnimFilebrowser(bpy.types.Operator, ExportHelper):
     filter_glob: StringProperty(default="*.anim*", options={"HIDDEN"})
     filename_ext: StringProperty(default=".animblend", options={"HIDDEN"})
 
+    export_all_enabled: BoolProperty(name="Export all enabled actions", default=False,
+                                   description="Exports multiple actionsin one file")
+
     def execute(self, context):
         print(self.filepath)
         modular_filepath = Path(self.filepath)
@@ -766,14 +788,22 @@ class OT_ExportAnimFilebrowser(bpy.types.Operator, ExportHelper):
         if len(modular_filepath.suffix) == 0:
             self.filepath += ".animblend"
 
-        Err = export_action(self.filepath, context)
+        Err = export_action(self.filepath, context, export_all_enabled=self.export_all_enabled)
 
         if Err is not None:
             self.report({"ERROR"}, f"{Err}")
             return {"CANCELLED"}
         
-        action_name = MetaData.GetActionNameFromIndex(context.scene.action_meta_data_index)
-        self.report({"INFO"}, f"Exported action \'{action_name}\' successfully to \'{self.filepath}\'")
+        if self.export_all_enabled:
+            action_count = 0
+            for anim_entry in context.scene.animlist:
+                if anim_entry.is_used:
+                    action_count += 1
+            self.report({"INFO"}, f"Exported {action_count} action(s) successfully to \'{self.filepath}\'")
+        else:    
+            action_name = MetaData.GetActionNameFromIndex(context.scene.action_meta_data_index)
+            self.report({"INFO"}, f"Exported action \'{action_name}\' successfully to \'{self.filepath}\'")
+
         return {'FINISHED'}
 
 
