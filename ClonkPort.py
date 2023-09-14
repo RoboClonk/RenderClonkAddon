@@ -493,7 +493,7 @@ def reuse_rigs_and_parent_objects(in_objects):
 
 class OT_MeshFilebrowser(bpy.types.Operator, ImportHelper):
     bl_idname = "mesh.open_filebrowser"
-    bl_label = "Import Mesh (.mesh/blend)"
+    bl_label = "Import Object (.mesh*)"
     bl_options = {'UNDO'}
 
     filter_glob: StringProperty(default="*.mesh*", options={"HIDDEN"})
@@ -630,13 +630,13 @@ class OT_ExportObjectFilebrowser(bpy.types.Operator, ExportHelper):
 
 class OT_AnimFilebrowser(bpy.types.Operator, ImportHelper):
     bl_idname = "anim.open_filebrowser"
-    bl_label = "Import Action (.anim/.animblend)"
+    bl_label = "Import Action (.anim*)"
     bl_options = {'UNDO'}
 
     filter_glob: StringProperty(default="*.anim*", options={"HIDDEN"})
 
-    force_import_action: BoolProperty(name="Force action import", default=False,
-                                      description="Import action although there is an action with the same name in blender")
+    force_import_action: BoolProperty(name="Force action import", default=False, 
+                                      description="Import action although there is an action with the same name in blender", options={"HIDDEN"})
     import_tools: BoolProperty(name="Import Tool Objects", default=True,
                                    description="Import tool objects if the action references any")
     
@@ -859,8 +859,7 @@ class OT_ActListFilebrowser(bpy.types.Operator, ImportHelper):
     bl_options = {'UNDO'}
 
     filter_glob: StringProperty(default="*.act", options={"HIDDEN"})
-    create_action_entry: BoolProperty(
-        name="Create Action Entries", default=True, description="Create entries in the actions list")
+    
     import_tool_mesh: BoolProperty(name="Import Tool Meshes", default=True,
                                    description="Import tool meshes if the actions reference any")
     reuse_materials_on_tools: BoolProperty(name="Reuse tool materials", default=True,
@@ -881,7 +880,7 @@ class OT_ActListFilebrowser(bpy.types.Operator, ImportHelper):
                 raise AssertionError("No Collection named ClonkRig found.")
             bpy.context.scene.always_rendered_objects = bpy.data.collections["ClonkRig"]
             reporttype, message = ImportActList(self.filepath, found_actions, found_meshes,
-                                                bpy.context.scene.anim_target, self.create_action_entry, self.import_tool_mesh, reuse_materials=self.reuse_materials_on_tools)
+                                                bpy.context.scene.anim_target, True, self.import_tool_mesh, reuse_materials=self.reuse_materials_on_tools)
 
             self.report({reporttype}, "%s" % (message))
 
@@ -899,10 +898,6 @@ class OT_ActMapFilebrowser(bpy.types.Operator, ImportHelper):
 
     filter_glob: StringProperty(default="*.txt", options={"HIDDEN"})
 
-    force_import_action: BoolProperty(name="Force action import", default=False,
-                                      description="Import action although there is an action with the same name in blender")
-    create_action_entry: BoolProperty(
-        name="Create Action Entries", default=True, description="Create entries in the actions list")
     import_tool_mesh: BoolProperty(name="Import Tool Meshes", default=True,
                                    description="Import tool meshes if the actions reference any")
     reuse_materials_on_tools: BoolProperty(name="Reuse tool materials", default=True,
@@ -927,7 +922,7 @@ class OT_ActMapFilebrowser(bpy.types.Operator, ImportHelper):
                 return {"CANCELLED"}
 
             reporttype, message = ImportActMap(self.filepath, found_actions, found_meshes,
-                                               bpy.context.scene.anim_target, self.create_action_entry, self.import_tool_mesh, reuse_materials=self.reuse_materials_on_tools)
+                                               bpy.context.scene.anim_target, True, self.import_tool_mesh, reuse_materials=self.reuse_materials_on_tools)
 
             self.report({reporttype}, f"{message}")
 
