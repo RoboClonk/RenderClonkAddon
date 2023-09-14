@@ -155,7 +155,14 @@ def LoadAction(path, animation_target, force_import_action=False, import_tools=T
 
     # Legacy action load
     else:
-        return AnimPort.LoadActionLegacy(path, animation_target, force_import_action)
+        anim_data = AnimPort.LoadActionLegacy(path, animation_target, force_import_action)
+
+        # Update old action names
+        current_action_name = anim_data["Action"].name
+        if current_action_name.lower() in MetaData.action_map:
+            anim_data["Action"].name = MetaData.action_map[current_action_name.lower()]
+
+        return anim_data
 
 
 def get_animfilemap(animfiles):

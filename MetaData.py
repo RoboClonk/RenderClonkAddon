@@ -398,9 +398,15 @@ def get_vgroup_mapping(name):
     return None
 
 
-# TODO:
+
 action_map = {
     "aimbow": "BowAim",
+    "bowaimride": "RideBowAim",
+    "bowload": "LoadBow",
+    "bowloadride": "RideLoadBow",
+    "armorputon": "PutOnArmor",
+    "magicride": "RideMagic",
+
 }
 
 
