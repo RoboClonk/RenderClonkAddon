@@ -32,7 +32,7 @@ bl_info = {
     "author": "Robin Hohnsbeen",
     "description": "For importing Clonk meshes and rendering spritesheets.",
     "blender": (3, 0, 1),
-    "version": (2, 8, 0),
+    "version": (2, 8, 1),
     "location": "",
     "warning": "",
     "category": "Render"
