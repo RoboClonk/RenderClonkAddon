@@ -179,69 +179,22 @@ def get_animfilemap(animfiles):
     return animfilemap
 
 
-def ImportActList(path, animfiles, meshfiles, target, create_entry, import_tools, reuse_materials=True):
-    print("Read act " + path)
-    file = open(path, "r")
-    lines = file.readlines()
-
-    is_reading_actions = False
-
+def import_actions_multi(action_names, animfiles, meshfiles, target, create_entry, import_tools, reuse_materials=True):
     print("Looking in " + str(len(animfiles)) + " animfiles")
-
     animfilemap = get_animfilemap(animfiles)
-
     animations_not_found = []
-    for line in lines:
-        line = line.replace("\n", "")
-        if line == "[Actions]":
-            is_reading_actions = True
-            continue
+    animations_found = 0
 
-        if is_reading_actions == False:
-            continue
-
-        if animfilemap.get(line) != None:
-            anim_data = LoadAction(animfilemap[line], target, import_tools=import_tools, reuse_materials=reuse_materials)
-
-            if anim_data: # Legacy import
-                new_entry = None
-                if create_entry:
-                    new_entry = MetaData.MakeActionEntry(anim_data)
-                if import_tools:
-                    _ImportToolsIfAnyLegacy(new_entry, anim_data, meshfiles, reuse_materials=reuse_materials)
-
-        else:
-            animations_not_found.append(line)
-
-    file.close()
-
-    if len(animations_not_found) > 0:
-        missing_actions = ""
-        for animation in animations_not_found:
-            missing_actions += animation + ", "
-        return "WARNING", "Could not find actions: %s" % (missing_actions)
-    else:
-        return "INFO", "Imported all actions from act file."
-
-
-# ActMap.txt
-def ImportActMap(path, animfiles, meshfiles, target, create_entry, import_tools, reuse_materials=True):
-    print("Read actmap " + path)
-    file = open(path, "r")
-    actmap, messagetype, message = IniPort.Read(path)
-    if messagetype == "ERROR":
-        return messagetype, message
-
-    print("Looking in " + str(len(animfiles)) + " animfiles")
-
-    animfilemap = get_animfilemap(animfiles)
-
-    animations_not_found = []
-    for section in actmap:
-        action = section["Name"]
+    for action in action_names:
+    # Look for updated file or name change.
+        if action.lower() in MetaData.action_map:
+            name_replacement = MetaData.action_map[action.lower()]
+            if animfilemap.get(name_replacement) != None:
+                action = name_replacement
 
         if animfilemap.get(action) != None:
             anim_data = LoadAction(animfilemap[action], target, import_tools=import_tools, reuse_materials=reuse_materials)
+            animations_found += 1
 
             if anim_data: # Legacy import
                 new_entry = None
@@ -253,16 +206,60 @@ def ImportActMap(path, animfiles, meshfiles, target, create_entry, import_tools,
         else:
             animations_not_found.append(action)
 
-    file.close()
-    if len(actmap) == len(animations_not_found):
+    if animations_found == 0:
         return "WARNING", "No actions could be found."
-    elif len(animations_not_found) > 0:
+    if len(animations_not_found) > 0:
         missing_actions = ""
         for animation in animations_not_found:
             missing_actions += animation + ", "
-        return "INFO", "Imported %d actions, omitted: %s" % (len(actmap) - len(animations_not_found), missing_actions)
+        return "WARNING", f"Imported {animations_found} actions. Omitted: {missing_actions}"
     else:
-        return "INFO", "Imported all actions from ActMap."
+        return "INFO", "Imported all actions from file."
+
+
+def ImportActList(path, animfiles, meshfiles, target, create_entry, import_tools, reuse_materials=True):
+    print("Read act " + path)
+    file = open(path, "r")
+    lines = file.readlines()
+
+    is_reading_actions = False
+    action_names = []
+    for line in lines:
+        line = line.replace("\n", "")
+        if line == "[Actions]":
+            is_reading_actions = True
+            continue
+
+        if is_reading_actions == False:
+            continue
+
+        action_names.append(line)
+
+    file.close()
+
+    message_type, message = import_actions_multi(action_names, animfiles, meshfiles, target, create_entry, import_tools, reuse_materials)
+
+    return message_type, message
+
+
+# ActMap.txt
+def ImportActMap(path, animfiles, meshfiles, target, create_entry, import_tools, reuse_materials=True):
+    print("Read actmap " + path)
+    file = open(path, "r")
+    actmap, messagetype, message = IniPort.Read(path)
+    if messagetype == "ERROR":
+        return messagetype, message
+
+    animations_not_found = []
+    action_names = []
+    for section in actmap:
+        action_names.append(section["Name"])
+
+    file.close()
+
+    message_type, message = import_actions_multi(action_names, animfiles, meshfiles, target, create_entry, import_tools, reuse_materials)
+    
+    return message_type, message
 
 
 def AppendRenderClonkSetup():
