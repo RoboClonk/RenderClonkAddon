@@ -399,14 +399,19 @@ class ACTION_PT_LayoutPanel(bpy.types.Panel):
             MetaData.has_anim_target() and anim_entry.action != None)
         if SpritesheetMaker.preview_active:
             preview_button_layout.operator(
-                Menu_Button.bl_idname, text="Playing.. (Press escape to cancel)", icon="PAUSE").menu_active = 8
+                Menu_Button.bl_idname, text="Playing.. (Press escape to stop)", icon="PAUSE").menu_active = 8
             shortcuthint_layout = layout.column(align=True)
             shortcuthint_layout.label(
                 text="Page Up | Page Down: Previous / next action")
             shortcuthint_layout.label(
-                text="arrow keys: adjust override resolution")
+                text="Arrow Keys: Adjust override resolution")
             shortcuthint_layout.label(
-                text="shift + arrow keys: adjust camera shift")
+                text="Shift + Arrow Keys: Adjust camera shift")
+            shortcuthint_layout.separator()
+            shortcuthint_layout.label(
+                text="Escape: Save action settings")
+            shortcuthint_layout.label(
+                text="Enter: Apply resolution to whole file")
         else:
             preview_row = preview_button_layout.row()
             preview_row.operator(

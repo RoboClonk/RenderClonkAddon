@@ -885,6 +885,7 @@ class PREVIEW_OT(bpy.types.Operator):
     """Operator that is responsible for an action preview"""
     bl_idname = "preview.action"
     bl_label = "Action Preview"
+    bl_options = {"UNDO"}
 
     _timer = None
 
@@ -909,6 +910,9 @@ class PREVIEW_OT(bpy.types.Operator):
     default_camera_shift_y = 0
 
     current_action_entry = None
+
+    keep_ortho_scale = False
+    keep_resolution = False
 
     def prepare_preview(self):
         if self.preview_next:
@@ -982,15 +986,17 @@ class PREVIEW_OT(bpy.types.Operator):
         bpy.context.scene.frame_start = self.framestart
         bpy.context.scene.frame_end = self.frameend
         bpy.context.scene.frame_current = self.currentframe
-        bpy.context.scene.render.resolution_x = self.base_x
-        bpy.context.scene.render.resolution_y = self.base_y
+        if self.keep_resolution == False:
+            bpy.context.scene.render.resolution_x = self.base_x
+            bpy.context.scene.render.resolution_y = self.base_y
         bpy.context.scene.render.use_border = False
         bpy.context.scene.render.use_crop_to_border = False
         if bpy.context.scene.camera:
             bpy.context.scene.camera.data.shift_x = self.default_camera_shift_x
             bpy.context.scene.camera.data.shift_y = self.default_camera_shift_y
         bpy.context.scene.camera = self.default_camera
-        self.reset_ortho_scale()
+        if self.keep_ortho_scale == False:
+            self.reset_ortho_scale()
 
         self.current_action_entry = None
 
@@ -1042,6 +1048,25 @@ class PREVIEW_OT(bpy.types.Operator):
             self.reset()
             self.preview_last = True
             self.prepare_preview()
+
+        if (event.type in {"RET"} or event.type in {"NUMPAD_ENTER"}) and event.value == "PRESS":
+            if self.current_action_entry.override_resolution == False or self.current_action_entry.width == self.base_x and self.current_action_entry.height == self.base_y:
+                self.report({"INFO"}, "No changes to resolution detected. Aborting.")
+            else:
+                self.keep_ortho_scale = True
+                self.keep_resolution = True
+                if bpy.context.scene.spritesheet_settings.custom_object_dimensions == False:
+                    bpy.context.scene.spritesheet_settings.custom_object_dimensions = True
+                    bpy.context.scene.spritesheet_settings.object_width = self.base_x
+                    bpy.context.scene.spritesheet_settings.object_height = self.base_y
+                    self.report({"INFO"}, f"New resolution and custom object size set.")
+                else:
+                    self.report({"INFO"}, f"New resolution set.")
+
+            self.current_action_entry.override_resolution = False
+            self.reset()
+            
+            return {'FINISHED'}
 
         if event.type in {"RIGHTMOUSE", "ESC", "LEFTMOUSE"}:
             self.reset()
