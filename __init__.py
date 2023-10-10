@@ -995,6 +995,8 @@ registered_classes = [
 
 
 def register():
+    import bpy.utils.previews
+
     global AddonDirectory
     script_file = os.path.realpath(__file__)
     AddonDirectory = os.path.dirname(script_file)
