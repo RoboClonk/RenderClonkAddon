@@ -127,9 +127,9 @@ def LoadAction(path, animation_target, force_import_action=False, import_tools=T
 
             # These objects get implicitly imported when they are referenced inside an anim blend file.
             if import_tools:
-                if collection:
+                if collection and collection.name not in bpy.context.view_layer.layer_collection.collection.children:
                     bpy.context.view_layer.layer_collection.collection.children.link(collection)
-                elif len(tool_objects) == 1:
+                elif len(tool_objects) == 1 and tool_objects[0].name not in bpy.context.view_layer.layer_collection.collection.objects:
                     bpy.context.view_layer.layer_collection.collection.objects.link(tool_objects[0])
 
                 if reuse_materials:
