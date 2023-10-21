@@ -289,8 +289,6 @@ def prepare_action(action_entry: MetaData.ActionMetaData):
     for anim_object in MetaData.get_anim_targets():
         if anim_object.type == "ARMATURE":
             AnimPort.ResetArmature(anim_object)
-        else:
-            reset_object(anim_object)
 
         if anim_object.animation_data == None:
             anim_object.animation_data_create()
@@ -488,6 +486,29 @@ def AdjustOrthoScale(anim_entry):
     return default_camera_zoom
 
 
+def save_anim_target_transforms(self):
+    self.default_anim_target_locations = {}
+    self.default_anim_target_rotations = {}
+
+    for anim_object in MetaData.get_anim_targets():
+        self.default_anim_target_locations[anim_object] = anim_object.location
+        if anim_object.rotation_mode == "QUATERNION":
+            self.default_anim_target_rotations[anim_object] = anim_object.rotation_quaternion
+        else:
+            self.default_anim_target_rotations[anim_object] = anim_object.rotation_euler
+
+
+def reset_anim_target_transforms(self):
+    for key, value in self.default_anim_target_locations.items():
+        key.location = value
+
+    for key, value in self.default_anim_target_rotations.items():
+        if key.rotation_mode == "QUATERNION":
+            key.rotation_quaternion = value
+        else:
+            key.rotation_euler = value
+
+
 # Spritesheet rendering
 class TIMER_OT(bpy.types.Operator):
     """Operator that shows a progress bar while rendering the spritesheet"""
@@ -533,6 +554,9 @@ class TIMER_OT(bpy.types.Operator):
     default_camera_zoom = {}  # Map from camera to default ortho scale
     default_camera_shift = {}  # Map from camera to default camera shift
 
+    default_anim_target_locations = {}
+    default_anim_target_rotations = {}
+
     base_output_path = ""
 
     cancel_message_type = ""
@@ -555,6 +579,8 @@ class TIMER_OT(bpy.types.Operator):
         self.base_y = bpy.context.scene.render.resolution_y
 
         self.default_camera = bpy.context.scene.camera
+
+        save_anim_target_transforms(self)
 
         if messagetype == "ERROR" or messagetype == "WARNING":
             self.cancel(context)
@@ -676,6 +702,7 @@ class TIMER_OT(bpy.types.Operator):
                 self.store_camera_shift(current_action)
 
                 try:
+                    reset_anim_target_transforms(self)
                     prepare_action(current_action)
                 except BaseException as Err:
                     print(f"{Err}")
@@ -859,6 +886,7 @@ class TIMER_OT(bpy.types.Operator):
 
         self.reset_ortho_scale()
         self.reset_camera_shift()
+        reset_anim_target_transforms(self)
 
         if self.current_action_index < len(self.action_entries):
             current_action: MetaData.ActionMetaData = self.action_entries[self.current_action_index]
@@ -909,6 +937,9 @@ class PREVIEW_OT(bpy.types.Operator):
     default_camera_shift_x = 0
     default_camera_shift_y = 0
 
+    default_anim_target_locations = {}
+    default_anim_target_rotations = {}
+
     current_action_entry = None
 
     keep_ortho_scale = False
@@ -935,6 +966,8 @@ class PREVIEW_OT(bpy.types.Operator):
             self.default_camera_shift_x = action_camera.data.shift_x
             self.default_camera_shift_y = action_camera.data.shift_y
         self.default_camera_zoom = AdjustOrthoScale(action_entry)
+
+        save_anim_target_transforms(self)
 
         global preview_active
         preview_active = True
@@ -997,6 +1030,8 @@ class PREVIEW_OT(bpy.types.Operator):
         bpy.context.scene.camera = self.default_camera
         if self.keep_ortho_scale == False:
             self.reset_ortho_scale()
+
+        reset_anim_target_transforms(self)
 
         self.current_action_entry = None
 
