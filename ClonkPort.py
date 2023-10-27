@@ -471,11 +471,17 @@ def reuse_rigs_and_parent_objects(in_objects):
         if len(anim_targets) > 0:
             found_matching_anim_target = False
             for anim_target in anim_targets:
+                if anim_target.name == imported_armature.name:
+                    # If several actions get imported at once, the tool might have already been attached to the default Clonk Rig. So we end here.
+                    print(f"{objects_with_armature} has/have already been parented to {anim_target.name}. So we won't parent it/them again.")
+                    found_matching_anim_target = True
+                    break
+
                 if are_armatures_equal(anim_target, imported_armature):
                     parent_objects_to_rig(objects_with_armature, anim_target)
                     unused_armatures.add(imported_armature)
                     found_matching_anim_target = True
-                    print(f"Armature {anim_target.name} is equal to {imported_armature.name}. Removing imported armature.")
+                    print(f"Armature {imported_armature.name} is equal to {anim_target.name}. Removing {imported_armature.name} armature.")
                     break
 
             if found_matching_anim_target == False:
@@ -484,7 +490,7 @@ def reuse_rigs_and_parent_objects(in_objects):
     for unused_armature in unused_armatures:
         if unused_armature in in_objects:
             in_objects.remove(unused_armature)
-        bpy.data.objects.remove(unused_armature)
+            bpy.data.objects.remove(unused_armature)
 
     parent_objects_to_rig(objects_without_rig, clonk_rig)
 
